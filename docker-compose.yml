@@ -1,0 +1,15 @@
+services:
+  api-server:
+    build:
+      context: .
+      dockerfile: crates/api-server/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - S3_BUCKET=${S3_BUCKET}
+      - API_KEY=${API_KEY}
+      - AWS_REGION=${AWS_REGION:-ap-northeast-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    restart: unless-stopped
