@@ -5,7 +5,6 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
-mod error;
 mod routes;
 mod s3_client;
 
@@ -20,6 +19,7 @@ async fn main() {
         .init();
 
     let config = config::AppConfig::from_env();
+    tracing::debug!(bucket = %config.s3_bucket, has_api_key = !config.api_key.is_empty(), "loaded app config");
     let s3 = s3_client::create_s3_client(&config).await;
     let state = routes::AppState {
         s3,

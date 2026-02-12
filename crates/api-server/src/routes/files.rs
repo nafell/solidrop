@@ -1,4 +1,4 @@
-use axum::{extract::State, routing::get, Json, Router};
+use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use serde::Serialize;
 
 use super::AppState;
@@ -8,23 +8,19 @@ pub fn router() -> Router<AppState> {
 }
 
 #[derive(Serialize)]
-struct FileEntry {
-    path: String,
-    size_bytes: u64,
-    last_modified: String,
-    content_hash: String,
+struct NotImplementedResponse {
+    error: &'static str,
 }
 
-#[derive(Serialize)]
-struct ListFilesResponse {
-    files: Vec<FileEntry>,
-    next_token: Option<String>,
-}
+async fn list_files(State(state): State<AppState>) -> (StatusCode, Json<NotImplementedResponse>) {
+    let _configured_bucket = &state.config.s3_bucket;
+    let _s3_client = &state.s3;
 
-async fn list_files(State(_state): State<AppState>) -> Json<ListFilesResponse> {
     // TODO: Implement S3 ListObjects-based file listing
-    Json(ListFilesResponse {
-        files: vec![],
-        next_token: None,
-    })
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(NotImplementedResponse {
+            error: "file listing is not implemented yet",
+        }),
+    )
 }
