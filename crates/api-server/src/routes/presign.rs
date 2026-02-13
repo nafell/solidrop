@@ -1,4 +1,4 @@
-use axum::{extract::State, routing::post, Json, Router};
+use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
@@ -17,20 +17,25 @@ struct UploadRequest {
 }
 
 #[derive(Serialize)]
-struct PresignResponse {
-    url: String,
-    expires_in: u64,
+struct NotImplementedResponse {
+    error: &'static str,
 }
 
 async fn presign_upload(
-    State(_state): State<AppState>,
-    Json(_body): Json<UploadRequest>,
-) -> Json<PresignResponse> {
+    State(state): State<AppState>,
+    Json(body): Json<UploadRequest>,
+) -> (StatusCode, Json<NotImplementedResponse>) {
+    let _request_shape = (&body.path, &body.content_hash, body.size_bytes);
+    let _configured_bucket = &state.config.s3_bucket;
+    let _s3_client = &state.s3;
+
     // TODO: Implement presigned upload URL generation
-    Json(PresignResponse {
-        url: String::new(),
-        expires_in: 3600,
-    })
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(NotImplementedResponse {
+            error: "presigned upload URL generation is not implemented yet",
+        }),
+    )
 }
 
 #[derive(Deserialize)]
@@ -39,12 +44,18 @@ struct DownloadRequest {
 }
 
 async fn presign_download(
-    State(_state): State<AppState>,
-    Json(_body): Json<DownloadRequest>,
-) -> Json<PresignResponse> {
+    State(state): State<AppState>,
+    Json(body): Json<DownloadRequest>,
+) -> (StatusCode, Json<NotImplementedResponse>) {
+    let _requested_path = &body.path;
+    let _configured_bucket = &state.config.s3_bucket;
+    let _s3_client = &state.s3;
+
     // TODO: Implement presigned download URL generation
-    Json(PresignResponse {
-        url: String::new(),
-        expires_in: 3600,
-    })
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(NotImplementedResponse {
+            error: "presigned download URL generation is not implemented yet",
+        }),
+    )
 }
