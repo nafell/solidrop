@@ -1,4 +1,4 @@
-# ArtSync — iPad お絵かきデータ基盤 要件定義書・設計書
+# SoliDrop — iPad お絵かきデータ基盤 要件定義書・設計書
 
 > **ドキュメントバージョン:** 0.1.0（Phase 1 MVP 着手前）
 > **最終更新:** 2026-02-11
@@ -116,9 +116,7 @@ iPadでのお絵かき作業の効率化のため、データ基盤（PCとの�
 
 - **経緯:** 当初はFargate想定。しかし既存契約のXServer VPS（6GB RAM）があるため、APIサーバーはVPS上のDockerで動かし、ストレージのみAWS S3を使用する構成を検討。
 - **評価:** 署名付きURL方式ではAPIサーバーのS3間データ転送は極めて少量（URLの発行のみ）なので、VPSがAWS外にあってもレイテンシ・Egress料金への影響は軽微。追加コスト0で開始できる利点が大きい。
-- **注意点:** VPS上にIAMアクセスキーを配置する必要があり、VPSのセキュリティがAWSアカウントに直結する。IAM権限の最小化とアクセスキーのローテーション運用が必須。
-- **決定:** Phase 1はXServer VPS。将来的にFargate/Lambdaへの段階的移行を想定。Dockerコンテナで実装し、移行容易性を確保する。
-
+- **注意点:** VPS上にIAMアクセスキーを配置する必要があり、VPSのセキュリティがAWSアカウントに直結する。IAM権限の最小化とアクセスキーのローテーション運用が必須。 - **決定:** Phase 1はXServer VPS。将来的にFargate/Lambdaへの段階的移行を想定。Dockerコンテナで実装し、移行容易性を確保する。
 #### 判断9: 技術スタック選定
 
 - **サーバーサイド:** Rust（学習目的、第一優先）。次点Go。
@@ -453,7 +451,7 @@ iPadアプリからのキャッシュ状態報告。サーバー側で退避候�
 |---|---|---|
 | S3 Bucket | `{project-name}-art-storage`, ap-northeast-1 | SSE-S3暗号化有効、バージョニング有効 |
 | S3 Lifecycle Policy | `/archived/*` → 90日後 Glacier Instant Retrieval | 長期保存コスト削減 |
-| IAM User | `artsync-api` | 最小権限: 特定バケットに対するPutObject, GetObject, ListBucket, DeleteObject, CopyObjectのみ |
+| IAM User | `solidrop-api` | 最小権限: 特定バケットに対するPutObject, GetObject, ListBucket, DeleteObject, CopyObjectのみ |
 | IAM Policy | インラインポリシー | バケットARN指定 |
 
 ### 8.2 S3バケット構成
@@ -524,7 +522,7 @@ MasterPassword (ユーザー入力)
 [暗号化ファイルの構造]
 ┌─────────────────────────────────────────┐
 │ Header (固定長)                         │
-│   ├─ Magic Bytes: "ARTSYNC\x01" (8B)   │
+│   ├─ Magic Bytes: "SOLIDROP\x01" (8B)   │
 │   ├─ Version: u8 (1B)                  │
 │   ├─ Salt: [u8; 16] (16B)              │
 │   ├─ Nonce: [u8; 12] (12B)             │
@@ -612,7 +610,7 @@ CREATE INDEX idx_location ON file_cache(location);
 ```toml
 [server]
 endpoint = "https://your-vps-domain.com/api/v1"
-api_key_env = "ARTSYNC_API_KEY"  # 環境変数名
+api_key_env = "SOLIDROP_API_KEY"  # 環境変数名
 
 [storage]
 download_dir = "~/Art/synced"
@@ -620,7 +618,7 @@ upload_dir = "~/Art/to-upload"
 
 [crypto]
 # マスターキーの取得先（OS credential store）
-keychain_service = "artsync"
+keychain_service = "solidrop"
 keychain_account = "master-key"
 ```
 

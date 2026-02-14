@@ -45,7 +45,7 @@ fn parse_header(data: &[u8]) -> Result<ParsedHeader<'_>, CryptoError> {
     })
 }
 
-/// Decrypt an ArtSync encrypted file using the master key.
+/// Decrypt an SoliDrop encrypted file using the master key.
 ///
 /// Returns the original plaintext data after verifying the AES-256-GCM authentication tag.
 pub fn decrypt(master_key: &[u8; 32], encrypted_data: &[u8]) -> Result<Vec<u8>, CryptoError> {
@@ -80,7 +80,7 @@ mod tests {
     #[test]
     fn test_roundtrip() {
         let master_key = [42u8; 32];
-        let plaintext = b"hello world, this is a test of ArtSync encryption";
+        let plaintext = b"hello world, this is a test of SoliDrop encryption";
         let encrypted = encrypt(&master_key, plaintext).unwrap();
         let decrypted = decrypt(&master_key, &encrypted).unwrap();
         assert_eq!(decrypted, plaintext);

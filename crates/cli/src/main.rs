@@ -6,7 +6,7 @@ mod commands;
 #[command(
     name = "art-sync",
     version,
-    about = "ArtSync PC CLI — upload, download, and manage files"
+    about = "SoliDrop PC CLI — upload, download, and manage files"
 )]
 struct Cli {
     #[command(subcommand)]

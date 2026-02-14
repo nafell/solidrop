@@ -21,7 +21,7 @@ pub fn derive_file_key(
 ) -> Result<[u8; 32], CryptoError> {
     let hkdf = Hkdf::<Sha256>::new(Some(file_salt), master_key);
     let mut file_key = [0u8; 32];
-    hkdf.expand(b"artsync-file-encryption", &mut file_key)
+    hkdf.expand(b"solidrop-file-encryption", &mut file_key)
         .map_err(|e| CryptoError::KeyDerivationFailed(e.to_string()))?;
     Ok(file_key)
 }

@@ -121,55 +121,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "artsync-api-server"
-version = "0.1.0"
-dependencies = [
- "artsync-crypto",
- "aws-config",
- "aws-sdk-s3",
- "axum",
- "axum-test",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "artsync-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "artsync-crypto",
- "clap",
- "directories",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "toml",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "artsync-crypto"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "argon2",
- "assert_matches",
- "hkdf",
- "rand 0.8.5",
- "sha2",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "assert-json-diff"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2631,6 +2582,55 @@ checksum = "86f4aa3ad99f2088c990dfa82d367e19cb29268ed67c574d10d0a4bfe71f07e0"
 dependencies = [
  "libc",
  "windows-sys 0.60.2",
+]
+
+[[package]]
+name = "solidrop-api-server"
+version = "0.1.0"
+dependencies = [
+ "aws-config",
+ "aws-sdk-s3",
+ "axum",
+ "axum-test",
+ "serde",
+ "serde_json",
+ "solidrop-crypto",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "solidrop-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "directories",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "solidrop-crypto",
+ "thiserror 1.0.69",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "solidrop-crypto"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "assert_matches",
+ "hkdf",
+ "rand 0.8.5",
+ "sha2",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

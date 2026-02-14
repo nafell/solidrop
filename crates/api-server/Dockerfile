@@ -11,15 +11,15 @@ COPY crates/api-server/ crates/api-server/
 COPY crates/cli/Cargo.toml crates/cli/Cargo.toml
 RUN mkdir -p crates/cli/src && echo "fn main() {}" > crates/cli/src/main.rs
 
-RUN cargo build --release --package artsync-api-server
+RUN cargo build --release --package solidrop-api-server
 
 # Runtime stage
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/artsync-api-server /usr/local/bin/artsync-api-server
+COPY --from=builder /app/target/release/solidrop-api-server /usr/local/bin/solidrop-api-server
 
 EXPOSE 3000
 
-CMD ["artsync-api-server"]
+CMD ["solidrop-api-server"]

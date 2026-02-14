@@ -1,11 +1,11 @@
 [package]
-name = "artsync-api-server"
+name = "solidrop-api-server"
 version = "0.1.0"
 edition = "2021"
-description = "ArtSync API server — presigned URL generation, file listing, cache management"
+description = "Solidrop API server — presigned URL generation, file listing, cache management"
 
 [dependencies]
-artsync-crypto = { path = "../crypto" }
+solidrop-crypto = { path = "../crypto" }
 axum = "0.7"
 aws-sdk-s3 = "1"
 aws-config = "1"
