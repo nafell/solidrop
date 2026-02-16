@@ -4,7 +4,7 @@ mod commands;
 
 #[derive(Parser)]
 #[command(
-    name = "art-sync",
+    name = "solidrop",
     version,
     about = "SoliDrop PC CLI — upload, download, and manage files"
 )]

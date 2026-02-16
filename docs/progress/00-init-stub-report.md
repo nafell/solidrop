@@ -10,22 +10,22 @@ A Rust 2021 workspace (`resolver = "2"`) with three member crates:
 
 | Crate | Package Name | Binary | Status |
 |---|---|---|---|
-| `crates/crypto/` | `artsync-crypto` | (library) | Fully implemented, 12 tests passing |
-| `crates/api-server/` | `artsync-api-server` | `artsync-api-server` | Scaffold — routes registered, handlers return stubs |
-| `crates/cli/` | `artsync-cli` | `art-sync` | Scaffold — subcommand dispatch works, handlers print placeholders |
+| `crates/crypto/` | `solidrop-crypto` | (library) | Fully implemented, 12 tests passing |
+| `crates/api-server/` | `solidrop-api-server` | `solidrop-api-server` | Scaffold — routes registered, handlers return stubs |
+| `crates/cli/` | `solidrop-cli` | `solidrop` | Scaffold — subcommand dispatch works, handlers print placeholders |
 
-### Crypto Library (`artsync-crypto`)
+### Crypto Library (`solidrop-crypto`)
 
 Production-ready. Implements the full encryption pipeline defined in README Section 9:
 
 - **Key derivation:** Argon2id (password -> 256-bit master key), HKDF-SHA256 (master key + per-file salt -> file encryption key).
-- **Encryption:** AES-256-GCM with the custom ArtSync binary file format (45-byte header: magic + version + salt + nonce + original size, followed by ciphertext + auth tag).
+- **Encryption:** AES-256-GCM with the custom SoliDrop binary file format (45-byte header: magic + version + salt + nonce + original size, followed by ciphertext + auth tag).
 - **Decryption:** Header parsing, key re-derivation, AES-256-GCM decryption, original-size verification.
 - **Hashing:** SHA-256 with `sha256:<hex>` output format, verification helper.
 
 Test coverage: encrypt/decrypt roundtrip, wrong-key rejection, truncated-data rejection, invalid-magic rejection, deterministic key derivation, salt uniqueness, file-key derivation, hash format, hash verification.
 
-### API Server (`artsync-api-server`)
+### API Server (`solidrop-api-server`)
 
 Axum 0.7 HTTP server. The server infrastructure is complete; route handler bodies are stubs.
 
@@ -45,7 +45,7 @@ Missing endpoints (not yet scaffolded):
 - `POST /api/v1/cache/report`
 - Bearer token authentication middleware
 
-### CLI Tool (`artsync-cli`)
+### CLI Tool (`solidrop-cli`)
 
 Clap 4 CLI with subcommand dispatch. Config loading is implemented; all command handlers are stubs.
 
@@ -122,12 +122,12 @@ Decisions are classified as:
 | Decision | Current Choice | Rationale | May Need Revisiting |
 |---|---|---|---|
 | Argon2id parameters | Library defaults (`Argon2::default()`) | Placeholder; README lists this as TBD-5. Should be tuned to target device (iPad) performance. | Yes — before production use |
-| HKDF info string | `b"artsync-file-encryption"` | Reasonable domain-separation string, but not specified in README. | Low priority |
+| HKDF info string | `b"solidrop-file-encryption"` | Reasonable domain-separation string, but not specified in README. | Low priority |
 | SHA-256 output format | `sha256:<hex>` prefix | Matches README examples (`sha256:abc123...`). Consistent. | No |
 | tower-http version | 0.6 | README spec says 0.5; bumped for axum 0.7 compatibility. | No — correct choice |
 | axum-test version | 16 | Latest compatible version for dev-dependencies. | No |
 | reqwest TLS backend | `rustls-tls` (not native-tls) | Avoids OpenSSL dependency, simpler cross-compilation. Not discussed in README. | Low priority |
-| CLI config path | `directories` crate (`ProjectDirs::from("com", "artsync", "art-sync")`) | Standard platform-specific config location. Org/app names are tentative. | Low priority |
+| CLI config path | `directories` crate (`ProjectDirs::from("dev", "nafell", "solidrop")`) | Standard platform-specific config location. Org/app names are tentative. | Low priority |
 | Dockerfile base image | `rust:1.93-slim` | Matches current toolchain. Will need updating as Rust versions change. | As needed |
 | docker-compose restart policy | `unless-stopped` | Reasonable default for personal VPS deployment. | No |
 
@@ -149,7 +149,7 @@ Decisions are classified as:
 
 ### Not yet started (Phase 1 scope but separate tracks)
 
-- Flutter iPad/Android app (`flutter/art_sync/`)
+- Flutter iPad/Android app (`flutter/solidrop/`)
 - Local SQLite cache management (iPad-side)
 - BGTaskScheduler integration (daily backup)
 

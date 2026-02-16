@@ -1,14 +1,14 @@
-# artsync-crypto — Specification
+# solidrop-crypto — Specification
 
-Shared encryption library for ArtSync. Used by both the API server and the PC CLI tool. Will also be used by the Flutter app if Rust FFI is chosen (TBD-8 in README).
+Shared encryption library for SoliDrop. Used by both the API server and the PC CLI tool. Will also be used by the Flutter app if Rust FFI is chosen (TBD-8 in README).
 
 ## Responsibility
 
-Provide all cryptographic primitives needed by ArtSync:
+Provide all cryptographic primitives needed by SoliDrop:
 
 1. Password-based master key derivation (Argon2id)
 2. Per-file encryption key derivation (HKDF-SHA256)
-3. File encryption and decryption (AES-256-GCM) with the ArtSync binary format
+3. File encryption and decryption (AES-256-GCM) with the SoliDrop binary format
 4. Content hashing (SHA-256) for deduplication and integrity checks
 
 This crate has **no network, filesystem, or async dependencies**. It operates on byte slices and returns byte vectors. Callers handle I/O.
@@ -28,14 +28,14 @@ fn generate_salt() -> [u8; 16]
 ```
 User password
   → Argon2id(password, salt) → 256-bit MasterKey
-    → HKDF-SHA256(MasterKey, file_salt, info="artsync-file-encryption") → 256-bit FileKey
+    → HKDF-SHA256(MasterKey, file_salt, info="solidrop-file-encryption") → 256-bit FileKey
 ```
 
 Each file gets a unique random salt, so each file gets a unique encryption key derived from the same master key. This prevents nonce reuse across files even if the same nonce value were generated twice (astronomically unlikely but defense-in-depth).
 
 **Decision: Argon2id parameters — TENTATIVE.** Currently uses `Argon2::default()`. The README lists this as TBD-5: parameters should be tuned based on iPad hardware performance before production use. The defaults are safe but may be too slow or too fast depending on the device.
 
-**Decision: HKDF info string — TENTATIVE.** The info string `b"artsync-file-encryption"` provides domain separation. This value was not specified in the README and was chosen during scaffolding. It is a reasonable choice and unlikely to need changing, but is not a "designed" decision.
+**Decision: HKDF info string — TENTATIVE.** The info string `b"solidrop-file-encryption"` provides domain separation. This value was not specified in the README and was chosen during scaffolding. It is a reasonable choice and unlikely to need changing, but is not a "designed" decision.
 
 ### Encryption (`encrypt.rs`)
 
@@ -43,7 +43,7 @@ Each file gets a unique random salt, so each file gets a unique encryption key d
 fn encrypt(master_key: &[u8; 32], plaintext: &[u8]) -> Result<Vec<u8>, CryptoError>
 ```
 
-Takes a master key and plaintext bytes. Internally generates a random salt and nonce, derives a per-file key, encrypts with AES-256-GCM, and returns a complete ArtSync-format file (header + ciphertext + auth tag).
+Takes a master key and plaintext bytes. Internally generates a random salt and nonce, derives a per-file key, encrypts with AES-256-GCM, and returns a complete SoliDrop-format file (header + ciphertext + auth tag).
 
 **Limitation:** Operates on the entire file in memory. For large files (55MB max .clip files), this is acceptable. Streaming encryption is a Phase 2+ consideration (README RISK-5).
 
@@ -53,7 +53,7 @@ Takes a master key and plaintext bytes. Internally generates a random salt and n
 fn decrypt(master_key: &[u8; 32], encrypted_data: &[u8]) -> Result<Vec<u8>, CryptoError>
 ```
 
-Parses the ArtSync header, validates magic bytes and version, re-derives the file key from the salt in the header, decrypts, and verifies the original size matches.
+Parses the SoliDrop header, validates magic bytes and version, re-derives the file key from the salt in the header, decrypts, and verifies the original size matches.
 
 ### Hashing (`hash.rs`)
 
@@ -64,13 +64,13 @@ fn verify_hash(data: &[u8], expected: &str) -> bool
 
 The `sha256:` prefix format matches the content_hash format used in the API (README Section 7.2, 11.1). Hashes are computed on **plaintext**, not ciphertext — this is a deliberate design choice enabling server-side dedup without the server ever seeing plaintext data.
 
-## ArtSync Encrypted File Format
+## SoliDrop Encrypted File Format
 
 **Decision: Custom binary format — THOUGHT-THROUGH.** Defined in README Section 9.3. Self-contained header means any file can be decrypted independently given the master key, with no external metadata required.
 
 ```
 Offset  Size  Field
-0       8     Magic: "ARTSYNC\x01"
+0       8     Magic: "SOLIDROP\x01"
 8       1     Version: 0x01
 9       16    Salt (for key derivation)
 25      12    Nonce (for AES-256-GCM)
@@ -120,4 +120,4 @@ Dev-only: `assert_matches` 1 (not currently used in tests but available).
 - `decrypt`: encrypt/decrypt roundtrip, wrong-key rejection, truncated data, invalid magic bytes (4 tests)
 - `hash`: format validation, hash verification (2 tests)
 
-Run with: `cargo test -p artsync-crypto`
+Run with: `cargo test -p solidrop-crypto`

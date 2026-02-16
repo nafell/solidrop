@@ -1,10 +1,10 @@
-# ArtSync — Architecture Document
+# SoliDrop — Architecture Document
 
 ## System Purpose
 
-ArtSync is a personal data infrastructure for iPad drawing workflows. It solves two problems:
+SoliDrop is a personal data infrastructure for iPad drawing workflows. It solves two problems:
 
-1. **Storage offloading** — iPad has 128GB storage. Large .clip files (30MB median, 55MB max) accumulate. ArtSync treats local storage as an LRU cache backed by S3.
+1. **Storage offloading** — iPad has 128GB storage. Large .clip files (30MB median, 55MB max) accumulate. SoliDrop treats local storage as an LRU cache backed by S3.
 2. **Cross-device file transfer** — Move files between iPad and PC (via cloud) with client-side encryption.
 
 Single-user system. No multi-tenancy, no shared access.
@@ -64,31 +64,31 @@ Single-user system. No multi-tenancy, no shared access.
 ## Crate Dependency Graph
 
 ```
-artsync-crypto (library)
+solidrop-crypto (library)
     ▲           ▲
     │           │
     │           │
-artsync-api-server    artsync-cli
+solidrop-api-server    solidrop-cli
 (binary)              (binary)
 ```
 
-`artsync-crypto` is the shared foundation. Both the server and CLI depend on it. The server and CLI have no dependency on each other.
+`solidrop-crypto` is the shared foundation. Both the server and CLI depend on it. The server and CLI have no dependency on each other.
 
 ## Component Details
 
-### artsync-crypto
+### solidrop-crypto
 
 **Role:** All cryptographic operations. Pure computation, no I/O.
 
 **Key flows:**
 - Password → Argon2id → 256-bit master key
 - Master key + per-file salt → HKDF-SHA256 → 256-bit file key
-- Plaintext + file key → AES-256-GCM → ArtSync-format encrypted file (45-byte header + ciphertext)
+- Plaintext + file key → AES-256-GCM → SoliDrop-format encrypted file (45-byte header + ciphertext)
 - SHA-256 hashing for content deduplication
 
 **Status:** Fully implemented with 12 passing tests. See `crates/crypto/SPEC.md`.
 
-### artsync-api-server
+### solidrop-api-server
 
 **Role:** HTTP API server. Issues presigned URLs, lists files, manages cache state.
 
@@ -99,7 +99,7 @@ artsync-api-server    artsync-cli
 
 **Status:** Server infrastructure complete. Route handlers are stubs. See `crates/api-server/SPEC.md`.
 
-### artsync-cli
+### solidrop-cli
 
 **Role:** PC-side file management. Upload, download, list, sync.
 
@@ -120,12 +120,12 @@ artsync-api-server    artsync-cli
 
 **Role:** iPad/Android client. File selection, encryption, upload, download, cache management, daily backup.
 
-**Planned location:** `flutter/art_sync/`
+**Planned location:** `flutter/solidrop/`
 
 **Open decisions (README §18.1):**
 - TBD-6: BGTaskScheduler implementation
 - TBD-7: S3 direct upload method (Dart HTTP vs. platform channel)
-- TBD-8: Encryption via Dart reimplementation or Rust FFI to `artsync-crypto`
+- TBD-8: Encryption via Dart reimplementation or Rust FFI to `solidrop-crypto`
 
 ## Data Flow: Upload
 
@@ -272,7 +272,7 @@ These are explicitly deferred decisions from README §18.1 that affect the archi
 | TBD-1 | S3 bucket name | Terraform apply blocked until decided |
 | TBD-2 | VPS domain / TLS method | API server deployment blocked until decided |
 | TBD-5 | Argon2id parameters | Performance on iPad; currently using defaults |
-| TBD-8 | Flutter encryption: Dart or Rust FFI | Determines whether `artsync-crypto` is shared with mobile or reimplemented |
+| TBD-8 | Flutter encryption: Dart or Rust FFI | Determines whether `solidrop-crypto` is shared with mobile or reimplemented |
 
 ## Cross-References
 

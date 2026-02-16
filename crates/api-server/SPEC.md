@@ -1,4 +1,4 @@
-# artsync-api-server — Specification
+# solidrop-api-server — Specification
 
 Rust/axum HTTP server deployed on XServer VPS via Docker. Issues S3 presigned URLs, lists files, and manages cache state. The server never handles file data — data flows directly between clients and S3.
 
@@ -123,8 +123,8 @@ Shared across all route handlers via axum's `State` extractor.
 ### Dockerfile
 
 Multi-stage build:
-1. **Build stage:** `rust:1.93-slim` — compiles `artsync-api-server` in release mode. Includes a dummy CLI crate to satisfy workspace dependencies without building the full CLI.
-2. **Runtime stage:** `debian:bookworm-slim` with `ca-certificates` (for HTTPS to AWS). Binary at `/usr/local/bin/artsync-api-server`. Exposes port 3000.
+1. **Build stage:** `rust:1.93-slim` — compiles `solidrop-api-server` in release mode. Includes a dummy CLI crate to satisfy workspace dependencies without building the full CLI.
+2. **Runtime stage:** `debian:bookworm-slim` with `ca-certificates` (for HTTPS to AWS). Binary at `/usr/local/bin/solidrop-api-server`. Exposes port 3000.
 
 **Decision: Rust version pinning — TENTATIVE.** The Dockerfile pins `rust:1.93-slim`. This will need updating as the toolchain evolves. No automated Rust version management is in place.
 
@@ -138,7 +138,7 @@ Single service (`api-server`). Port 3000 mapped. Environment variables passed th
 
 | Crate | Version | Purpose |
 |---|---|---|
-| `artsync-crypto` | path | Shared encryption library |
+| `solidrop-crypto` | path | Shared encryption library |
 | `axum` | 0.7 | HTTP framework |
 | `aws-sdk-s3` | 1 | S3 API client |
 | `aws-config` | 1 | AWS credential/config loading |

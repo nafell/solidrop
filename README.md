@@ -284,12 +284,12 @@ iPad本体の128GBストレージを有効活用するため、使用頻度の�
 **MVP機能:**
 
 ```
-art-sync upload <file_path>           # ファイルをアップロード
-art-sync download <remote_path>       # ファイルをダウンロード
-art-sync list [--prefix <prefix>]     # ファイル一覧
-art-sync sync                         # 新着ファイルをダウンロード
-art-sync delete <remote_path>         # ファイル削除
-art-sync move <from> <to>             # ファイル移動（active ↔ archived）
+solidrop upload <file_path>           # ファイルをアップロード
+solidrop download <remote_path>       # ファイルをダウンロード
+solidrop list [--prefix <prefix>]     # ファイル一覧
+solidrop sync                         # 新着ファイルをダウンロード
+solidrop delete <remote_path>         # ファイル削除
+solidrop move <from> <to>             # ファイル移動（active ↔ archived）
 ```
 
 - 設定ファイル（TOML）: APIエンドポイント、APIキー、ダウンロード先ディレクトリ、マスターパスワードのキーチェーン参照先
@@ -832,7 +832,7 @@ project-root/
 │       │   └── config.rs
 │       └── Cargo.toml
 ├── flutter/
-│   └── art_sync/          # iPad/Androidアプリ
+│   └── solidrop/          # iPad/Androidアプリ
 │       ├── lib/
 │       ├── pubspec.yaml
 │       └── ...
@@ -883,7 +883,7 @@ members = [
 |---|---|
 | `crates/api-server/` 全エンドポイント実装 | Docker化、VPSデプロイ |
 | `crates/cli/` 実装 | PC からアップロード/ダウンロード/一覧 |
-| `flutter/art_sync/` 実装 | iPad アプリ（ファイル選択、アップロード、一覧、ダウンロード） |
+| `flutter/solidrop/` 実装 | iPad アプリ（ファイル選択、アップロード、一覧、ダウンロード） |
 | キャッシュ管理（ローカルSQLite + 退避候補提示） | ストレージオフロード機能 |
 | 日次自動バックアップ（BGTaskScheduler） | バックグラウンドバックアップ |
 

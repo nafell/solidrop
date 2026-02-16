@@ -19,7 +19,7 @@ Terraform configurations for provisioning AWS resources. The VPS itself is not m
 | Variable | Type | Default | Required | Notes |
 |---|---|---|---|---|
 | `aws_region` | string | `ap-northeast-1` | No | Tokyo region — THOUGHT-THROUGH (README §8.1) |
-| `project_name` | string | `artsync` | No | Used for IAM user naming |
+| `project_name` | string | `solidrop` | No | Used for IAM user naming |
 | `bucket_name` | string | — | **Yes** | No default — README TBD-1 |
 
 **Decision: bucket_name has no default — deliberate.** The README lists the actual bucket name as TBD-1. The variable forces an explicit choice at `terraform plan/apply` time.
@@ -97,10 +97,10 @@ cd infra/terraform/
 terraform init
 
 # Preview changes
-terraform plan -var="bucket_name=my-artsync-bucket"
+terraform plan -var="bucket_name=my-solidrop-bucket"
 
 # Apply
-terraform apply -var="bucket_name=my-artsync-bucket"
+terraform apply -var="bucket_name=my-solidrop-bucket"
 ```
 
 A `.tfvars` file is recommended for repeated use but is gitignored for security.

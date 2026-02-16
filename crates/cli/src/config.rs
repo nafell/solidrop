@@ -28,7 +28,7 @@ pub struct CryptoConfig {
 
 impl CliConfig {
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
-        let config_dir = directories::ProjectDirs::from("com", "solidrop", "art-sync")
+        let config_dir = directories::ProjectDirs::from("dev", "nafell", "solidrop")
             .ok_or("could not determine config directory")?;
         let config_path = config_dir.config_dir().join("config.toml");
         let content = std::fs::read_to_string(&config_path).map_err(|e| {

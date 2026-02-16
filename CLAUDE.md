@@ -10,8 +10,8 @@ See `README.md` for the full requirements and design specification (Japanese).
 
 - **API Server** (`crates/api-server/`): Rust/axum HTTP server that issues S3 presigned URLs, lists files, and manages cache state. Deployed via Docker on XServer VPS.
 - **Crypto Library** (`crates/crypto/`): Shared crate for AES-256-GCM encryption/decryption, Argon2id key derivation, SHA-256 hashing. Used by both server and CLI.
-- **PC CLI** (`crates/cli/`): Rust CLI tool (`art-sync`) for uploading, downloading, listing, and syncing files from a PC.
-- **Flutter App** (`flutter/art_sync/`): iPad/Android client (not yet created).
+- **PC CLI** (`crates/cli/`): Rust CLI tool (`solidrop`) for uploading, downloading, listing, and syncing files from a PC.
+- **Flutter App** (`flutter/solidrop/`): iPad/Android client (not yet created).
 - **Infrastructure** (`infra/terraform/`): Terraform configs for AWS S3 bucket + IAM.
 
 ## Development Commands

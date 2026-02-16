@@ -1,6 +1,6 @@
-# artsync-cli — Specification
+# solidrop-cli — Specification
 
-PC command-line tool for uploading, downloading, listing, and syncing files with the ArtSync cloud. Shares the `artsync-crypto` crate with the API server for encryption/decryption.
+PC command-line tool for uploading, downloading, listing, and syncing files with the SoliDrop cloud. Shares the `solidrop-crypto` crate with the API server for encryption/decryption.
 
 ## Responsibility
 
@@ -29,19 +29,19 @@ This is the primary PC ↔ cloud interface for Phase 1. A GUI tool is planned fo
 
 ## CLI Interface
 
-Binary name: `art-sync`
+Binary name: `solidrop`
 
 ```
-art-sync upload <file_path>           # Encrypt and upload a file
-art-sync download <remote_path>       # Download and decrypt a file
-art-sync list [--prefix <prefix>]     # List remote files
-art-sync sync                         # Download new/updated files
+solidrop upload <file_path>           # Encrypt and upload a file
+solidrop download <remote_path>       # Download and decrypt a file
+solidrop list [--prefix <prefix>]     # List remote files
+solidrop sync                         # Download new/updated files
 ```
 
 Additional commands specified in README §6.2 but not yet scaffolded:
 ```
-art-sync delete <remote_path>         # Delete a remote file
-art-sync move <from> <to>             # Move file (active ↔ archived)
+solidrop delete <remote_path>         # Delete a remote file
+solidrop move <from> <to>             # Move file (active ↔ archived)
 ```
 
 ## Configuration
@@ -51,23 +51,23 @@ TOML config file loaded from the platform-specific config directory:
 ```toml
 [server]
 endpoint = "https://your-vps-domain.com/api/v1"
-api_key_env = "ARTSYNC_API_KEY"       # Name of env var holding the API key
+api_key_env = "SOLIDROP_API_KEY"       # Name of env var holding the API key
 
 [storage]
 download_dir = "~/Art/synced"         # Where downloaded files are saved
 upload_dir = "~/Art/to-upload"        # Default upload source directory
 
 [crypto]
-keychain_service = "artsync"          # OS credential store service name
+keychain_service = "solidrop"          # OS credential store service name
 keychain_account = "master-key"       # OS credential store account name
 ```
 
 **Config path** is resolved via the `directories` crate:
-- Linux: `~/.config/art-sync/config.toml`
-- macOS: `~/Library/Application Support/com.artsync.art-sync/config.toml`
-- Windows: `C:\Users\<user>\AppData\Roaming\artsync\art-sync\config\config.toml`
+- Linux: `~/.config/solidrop/config.toml`
+- macOS: `~/Library/Application Support/dev.nafell.solidrop/config.toml`
+- Windows: `C:\Users\<user>\AppData\Roaming\nafell\solidrop\config\config.toml`
 
-**Decision: Config path via `directories` crate — TENTATIVE.** The org/app identifiers (`com`, `artsync`, `art-sync`) were chosen during scaffolding. The README specifies a TOML config but doesn't prescribe the path resolution mechanism.
+**Decision: Config path via `directories` crate — TENTATIVE.** The org/app identifiers (`dev`, `nafell`, `solidrop`) were chosen during scaffolding. The README specifies a TOML config but doesn't prescribe the path resolution mechanism.
 
 **Decision: API key via environment variable — THOUGHT-THROUGH.** The config file stores the *name* of the env var (not the key itself), preventing accidental key exposure in config files. Defined in README §11.3.
 
@@ -75,7 +75,7 @@ keychain_account = "master-key"       # OS credential store account name
 
 These flows are defined in README §5.2 and documented as TODOs in the stub files.
 
-### Upload (`art-sync upload <file_path>`)
+### Upload (`solidrop upload <file_path>`)
 
 1. Read the file from disk
 2. Compute SHA-256 hash of the plaintext
@@ -83,7 +83,7 @@ These flows are defined in README §5.2 and documented as TODOs in the stub file
 4. Send `POST /api/v1/presign/upload` with `{ path, content_hash, size_bytes }`
 5. PUT the encrypted data to S3 via the returned presigned URL
 
-### Download (`art-sync download <remote_path>`)
+### Download (`solidrop download <remote_path>`)
 
 1. Send `POST /api/v1/presign/download` with `{ path }`
 2. GET the encrypted data from S3 via the returned presigned URL
@@ -91,12 +91,12 @@ These flows are defined in README §5.2 and documented as TODOs in the stub file
 4. Verify SHA-256 hash matches the stored content_hash
 5. Save the plaintext file to the configured download directory
 
-### List (`art-sync list [--prefix <prefix>]`)
+### List (`solidrop list [--prefix <prefix>]`)
 
 1. Send `GET /api/v1/files?prefix=<prefix>` to the API server
 2. Display the file list (path, size, last modified date)
 
-### Sync (`art-sync sync`)
+### Sync (`solidrop sync`)
 
 1. Send `GET /api/v1/files` to get the full remote file list
 2. Compare with local files in the download directory
@@ -128,7 +128,7 @@ These flows are defined in README §5.2 and documented as TODOs in the stub file
 
 | Crate | Version | Purpose |
 |---|---|---|
-| `artsync-crypto` | path | Shared encryption library |
+| `solidrop-crypto` | path | Shared encryption library |
 | `anyhow` | 1 | Error handling (binary crate) |
 | `clap` | 4 (derive) | CLI argument parsing |
 | `reqwest` | 0.12 (rustls-tls) | HTTP client for API calls |
