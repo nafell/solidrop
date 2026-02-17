@@ -6,6 +6,8 @@ Personal data infrastructure for iPad drawing workflows: encrypted backup to AWS
 
 See `README.md` for the full requirements and design specification (Japanese).
 
+Also check `docs/README.md` for an overview of the documentation structure.
+
 ## Architecture
 
 - **API Server** (`crates/api-server/`): Rust/axum HTTP server that issues S3 presigned URLs, lists files, and manages cache state. Deployed via Docker on XServer VPS.
@@ -74,3 +76,11 @@ cargo run -p solidrop-cli -- --help
 - Follow standard Rust naming conventions (snake_case for functions/variables, CamelCase for types)
 - Keep modules focused — one responsibility per file
 - Write tests in `#[cfg(test)]` modules within source files
+
+## Infrastructure Setup
+There are multiple infrastructure components required for the application that requires the USER to set up:
+- An S3 bucket for storing encrypted files.
+- AWS credentials for accessing the S3 bucket.
+- VPS server config and CI/CD pipeline for hosting the API server.
+Prompt the USER and explain the procedure just before they are needed for development.
+Remove this section from CLAUDE.md once that is addressed.

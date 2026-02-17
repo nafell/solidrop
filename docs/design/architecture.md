@@ -13,18 +13,18 @@ Single-user system. No multi-tenancy, no shared access.
 
 ```
 ┌──────────────┐     ┌──────────────┐
-│  iPad App    │     │   PC CLI     │
-│  (Flutter)   │     │   (Rust)     │
-│              │     │              │
-│ encrypt/     │     │ encrypt/     │
-│ decrypt      │     │ decrypt      │
-│ locally      │     │ locally      │
+│        iPad App       │     │          PC CLI        │
+│        (Flutter)      │     │          (Rust)        │
+│                       │     │                        │
+│       encrypt/        │     │        encrypt/        │
+│       decrypt         │     │        decrypt         │
+│       locally         │     │        locally         │
 └──────┬───────┘     └──────┬───────┘
-       │                     │
-       │  1. Request         │  1. Request
-       │     presigned URL   │     presigned URL
-       │                     │
-       ▼                     ▼
+            │                              │
+            │  1. Request                  │  1. Request
+            │     presigned URL            │     presigned URL
+            │                              │
+            ▼                              ▼
 ┌─────────────────────────────────────┐
 │       API Server (Rust/axum)        │
 │       on XServer VPS (Docker)       │
@@ -35,10 +35,10 @@ Single-user system. No multi-tenancy, no shared access.
 │  - Bearer token auth                │
 │  - Never touches file data          │
 └──────────────┬──────────────────────┘
-               │
-               │  2. Generate presigned URL
-               │     (S3 API call)
-               ▼
+                         │
+                         │  2. Generate presigned URL
+                         │     (S3 API call)
+                         ▼
 ┌─────────────────────────────────────┐
 │            AWS S3                   │
 │                                     │
@@ -50,13 +50,13 @@ Single-user system. No multi-tenancy, no shared access.
 │  SSE-S3: enabled                    │
 │  Lifecycle: archived/ → Glacier IR  │
 └──────────────┬──────────────────────┘
-               ▲
-               │  3. PUT/GET encrypted
-               │     data directly
-               │
-       ┌───────┴───────┐
-       │               │
-  iPad App          PC CLI
+                         ▲
+                         │  3. PUT/GET encrypted
+                         │     data directly
+                         │
+            ┌───────┴───────┐
+            │                         │
+          iPad App                  PC CLI
 ```
 
 **Key insight:** The API server is a control plane, not a data plane. It never sees file contents. Clients encrypt locally, get a presigned URL, and transfer data directly to/from S3.
@@ -65,9 +65,9 @@ Single-user system. No multi-tenancy, no shared access.
 
 ```
 solidrop-crypto (library)
-    ▲           ▲
-    │           │
-    │           │
+    ▲                   ▲
+    │                   │
+    │                   │
 solidrop-api-server    solidrop-cli
 (binary)              (binary)
 ```

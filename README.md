@@ -190,44 +190,44 @@ iPad本体の128GBストレージを有効活用するため、使用頻度の�
 
 ```
 ┌─────────────────────────┐       ┌──────────────────────┐
-│    iPad (Flutter App)   │       │    PC (Rust CLI)     │
-│                         │       │                      │
-│  ・手動ファイル選択     │       │  ・新着ポーリング    │
-│  ・AES-256-GCM暗号化   │       │  ・復号＋保存        │
-│  ・署名付きURLでS3 PUT  │       │  ・アップロード      │
-│  ・日次自動バックアップ │       │                      │
-│  ・キャッシュ管理       │       │                      │
-│    (ローカルSQLite)     │       │                      │
+│            iPad (Flutter App)            │       │             PC (Rust CLI)          │
+│                                          │       │                                    │
+│          ・手動ファイル選択                │       │           ・新着ポーリング         │
+│          ・AES-256-GCM暗号化             │       │           ・復号＋保存             │
+│          ・署名付きURLでS3 PUT            │       │           ・アップロード           │
+│          ・日次自動バックアップ             │       │                                    │
+│          ・キャッシュ管理                  │       │                                    │
+│            (ローカルSQLite)               │       │                                    │
 └───────────┬─────────────┘       └──────────┬───────────┘
-            │                                 │
-            │  HTTPS (署名付きURL)             │  HTTPS (署名付きURL)
-            ▼                                 ▼
+                    │                                             │
+                    │  HTTPS (署名付きURL)                         │  HTTPS (署名付きURL)
+                    ▼                                             ▼
 ┌────────────────────────────────────────────────────────┐
-│                      AWS S3                            │
-│   Bucket: {project-name}-art-storage                   │
-│   ├── /active/      ← ローカルにも存在するファイル     │
-│   ├── /archived/    ← クラウドのみ（退避済み）         │
-│   └── /transfer/    ← デバイス間転送用                 │
-│                                                        │
-│   設定: SSE-S3暗号化有効、バージョニング有効           │
-│   Lifecycle: /archived/ → 90日後 Glacier Instant       │
+│                      AWS S3                                                                 │
+│   Bucket: {project-name}-art-storage                                                        │
+│   ├── /active/      ← ローカルにも存在するファイル                                             │
+│   ├── /archived/    ← クラウドのみ（退避済み）                                                │
+│   └── /transfer/    ← デバイス間転送用                                                       │
+│                                                                                             │
+│   設定: SSE-S3暗号化有効、バージョニング有効                                                      │
+│   Lifecycle: /archived/ → 90日後 Glacier Instant                                             │
 └────────────────────────────────────────────────────────┘
             ▲
             │  HTTPS (署名付きURL発行リクエスト)
             │
 ┌────────────────────────────────────────────────────────┐
-│              XServer VPS (Docker)                      │
-│                                                        │
-│   ┌────────────────────────────────────┐               │
-│   │   Rust API Server (axum)          │               │
-│   │                                    │               │
-│   │   ・署名付きURL発行               │               │
-│   │   ・ファイル一覧 (S3 ListObjects) │               │
-│   │   ・キャッシュ状態管理API         │               │
-│   │   ・Bearer Token認証              │               │
-│   └────────────────────────────────────┘               │
-│                                                        │
-│   IAMアクセスキー（最小権限: 特定バケットのみ）        │
+│              XServer VPS (Docker)                                                            │
+│                                                                                              │
+│   ┌────────────────────────────────────┐                           │
+│   │   Rust API Server (axum)                                   │                           │
+│   │                                                            │                           │
+│   │   ・署名付きURL発行                                          │                           │
+│   │   ・ファイル一覧 (S3 ListObjects)                            │                           │
+│   │   ・キャッシュ状態管理API                                     │                           │
+│   │   ・Bearer Token認証                                        │                           │
+│   └────────────────────────────────────┘                           │
+│                                                                                             │
+│   IAMアクセスキー（最小権限: 特定バケットのみ）                                                   │
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -843,11 +843,18 @@ project-root/
 │       ├── iam.tf
 │       └── variables.tf
 ├── docs/
-│   ├── this-document.md   # 本ドキュメント
+│   ├── design/
+│   │   ├── architecture.md
+│   │   ├── data-model.md
+│   │   └── user-flow.md
+│   ├── progress/
+│   ｜   ├── 00-init-stub-plan.md     # 実装計画書
+│   ｜   ├── 00-init-stub-report.md   # 実装報告書/引継書
+│   ｜   └── lessons.md   # 実装時のトラブルシューティング記録
 │   └── api-spec.yaml      # OpenAPI仕様（将来）
 ├── Cargo.toml             # Cargo workspace
 ├── docker-compose.yml
-└── README.md
+└── README.md # 本ドキュメント
 ```
 
 ### 16.1 Cargo ワークスペース
