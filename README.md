@@ -926,11 +926,11 @@ members = [
 
 | ID | 項目 | 状態 | 備考 |
 |---|---|---|---|
-| TBD-1 | S3バケット名の正式名称 | 未決定 | `{project-name}-art-storage` のプレースホルダー |
-| TBD-2 | VPSドメイン名 / TLS証明書の取得方法 | 未決定 | Let's Encrypt or Caddy |
-| TBD-3 | APIキーの生成・管理方法 | 未決定 | 初回セットアップ時に生成、環境変数 or ファイル管理 |
+| TBD-1 | S3バケット名の正式名称 | **決定: `nafell-solidrop-storage`** | 本番用バケット名 |
+| TBD-2 | VPSドメイン名 / TLS証明書の取得方法 | **決定: Caddy（自動TLS）、ドメイン既存** | Caddyの自動HTTPS機能を利用 |
+| TBD-3 | APIキーの生成・管理方法 | **決定: `openssl rand -hex 32`、環境変数管理** | `API_KEY`環境変数で管理 |
 | TBD-4 | IAMアクセスキーのローテーション頻度 | 未決定 | 90日ごと程度を推奨 |
-| TBD-5 | Argon2idのパラメータ（メモリコスト、反復回数） | 未決定 | OWASP推奨値を基準に、クライアント端末の性能で調整 |
+| TBD-5 | Argon2idのパラメータ（メモリコスト、反復回数） | **暫定: ライブラリデフォルト、Flutter時に実測調整** | `argon2` crateのデフォルト値を使用。iPad実機での性能測定後に最適化 |
 | TBD-6 | BGTaskSchedulerの具体的なタスク識別子・実装方式 | 未決定 | Flutter側プラグイン選定にも依存 |
 | TBD-7 | Flutter側のS3直接アップロード実装方式 | 未決定 | Dart HTTPクライアント or platform channel経由 |
 | TBD-8 | Flutterの暗号化処理: Dart実装 or Rust FFI | 未決定 | パフォーマンス検証後に判断。Rust FFIなら暗号化crateを直接利用可 |
