@@ -19,7 +19,7 @@ The server is a thin orchestration layer. It holds IAM credentials and translate
 | Server bootstrap | `src/main.rs` | Complete |
 | Config (env vars) | `src/config.rs` | Complete |
 | Error responses | `src/error.rs` | Complete |
-| S3 client init | `src/s3_client.rs` | Complete |
+| S3 client init | `src/s3_client.rs` | Complete (custom endpoint + path-style support) |
 | Route aggregation | `src/routes/mod.rs` | Complete |
 | Health check | `src/routes/health.rs` | Complete |
 | Presigned URLs | `src/routes/presign.rs` | **Stub** — types defined, returns empty URLs |
@@ -70,8 +70,13 @@ Loaded from environment variables in `config.rs`:
 | `S3_BUCKET` | Yes | — | S3 bucket name |
 | `API_KEY` | Yes | — | Bearer token for authentication |
 | `AWS_REGION` | No | `ap-northeast-1` | AWS region |
+| `S3_ENDPOINT_URL` | No | — | Custom S3 endpoint (e.g. `http://minio:9000` for local dev) |
+| `S3_FORCE_PATH_STYLE` | No | `false` | Path-style S3 addressing (required for MinIO) |
+| `S3_PUBLIC_ENDPOINT_URL` | No | — | Public endpoint for presigned URL rewriting |
 
 AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) are handled by the AWS SDK's standard credential chain, passed through in `docker-compose.yml`.
+
+When `S3_ENDPOINT_URL` is unset, the AWS SDK uses standard AWS S3 endpoints (production behavior). When set, the S3 client connects to the specified endpoint, enabling local development with MinIO or other S3-compatible storage.
 
 ## Application State
 
@@ -130,7 +135,12 @@ Multi-stage build:
 
 ### docker-compose.yml
 
-Single service (`api-server`). Port 3000 mapped. Environment variables passed through from host. Restart policy: `unless-stopped`.
+Three services for local development:
+- `minio` — S3-compatible storage (ports 9000/9001)
+- `minio-init` — auto-creates the development bucket
+- `api-server` — the API server, depends on MinIO being ready
+
+For production, the MinIO services are not used; the API server connects directly to AWS S3 when `S3_ENDPOINT_URL` is unset.
 
 **Decision: `unless-stopped` restart policy — TENTATIVE.** Reasonable for a personal VPS. No health check or orchestration beyond Docker's restart.
 
