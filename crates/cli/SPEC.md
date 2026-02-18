@@ -20,12 +20,16 @@ This is the primary PC ↔ cloud interface for Phase 1. A GUI tool is planned fo
 | CLI argument parsing | `src/main.rs` | Complete |
 | Config file loading | `src/config.rs` | Complete |
 | Command dispatch | `src/commands/mod.rs` | Complete |
-| Upload command | `src/commands/upload.rs` | **Stub** |
-| Download command | `src/commands/download.rs` | **Stub** |
-| List command | `src/commands/list.rs` | **Stub** |
-| Sync command | `src/commands/sync.rs` | **Stub** |
-| Delete command | — | **Not started** |
-| Move command | — | **Not started** |
+| API client | `src/api_client.rs` | Complete |
+| Master key acquisition | `src/master_key.rs` | Complete (env var; keychain planned) |
+| Upload command | `src/commands/upload.rs` | Complete |
+| Download command | `src/commands/download.rs` | Complete |
+| List command | `src/commands/list.rs` | Complete |
+| Sync command | `src/commands/sync.rs` | Complete |
+| Delete command | `src/commands/delete.rs` | Complete |
+| Move command | `src/commands/move_cmd.rs` | Complete |
+| API contract tests | `tests/api_contract_test.rs` | Complete (requires docker-compose) |
+| CLI E2E tests | — | **Not started** (TODO: `assert_cmd`) |
 
 ## CLI Interface
 
@@ -36,10 +40,6 @@ solidrop upload <file_path>           # Encrypt and upload a file
 solidrop download <remote_path>       # Download and decrypt a file
 solidrop list [--prefix <prefix>]     # List remote files
 solidrop sync                         # Download new/updated files
-```
-
-Additional commands specified in README §6.2 but not yet scaffolded:
-```
 solidrop delete <remote_path>         # Delete a remote file
 solidrop move <from> <to>             # Move file (active ↔ archived)
 ```
@@ -54,8 +54,7 @@ endpoint = "https://your-vps-domain.com/api/v1"
 api_key_env = "SOLIDROP_API_KEY"       # Name of env var holding the API key
 
 [storage]
-download_dir = "~/Art/synced"         # Where downloaded files are saved
-upload_dir = "~/Art/to-upload"        # Default upload source directory
+download_dir = "~/Art/synced"         # Where downloaded/synced files are saved
 
 [crypto]
 keychain_service = "solidrop"          # OS credential store service name
@@ -71,9 +70,9 @@ keychain_account = "master-key"       # OS credential store account name
 
 **Decision: API key via environment variable — THOUGHT-THROUGH.** The config file stores the *name* of the env var (not the key itself), preventing accidental key exposure in config files. Defined in README §11.3.
 
-## Planned Command Flows
+## Command Flows
 
-These flows are defined in README §5.2 and documented as TODOs in the stub files.
+Based on README §5.2.
 
 ### Upload (`solidrop upload <file_path>`)
 
@@ -83,24 +82,39 @@ These flows are defined in README §5.2 and documented as TODOs in the stub file
 4. Send `POST /api/v1/presign/upload` with `{ path, content_hash, size_bytes }`
 5. PUT the encrypted data to S3 via the returned presigned URL
 
+Remote path: `active/{YYYY-MM}/{filename}.enc`
+
 ### Download (`solidrop download <remote_path>`)
 
 1. Send `POST /api/v1/presign/download` with `{ path }`
 2. GET the encrypted data from S3 via the returned presigned URL
 3. Decrypt with AES-256-GCM using the master key
-4. Verify SHA-256 hash matches the stored content_hash
-5. Save the plaintext file to the configured download directory
+4. Save the plaintext file (basename only) to `download_dir`
+
+Note: content_hash verification on download is not yet implemented.
 
 ### List (`solidrop list [--prefix <prefix>]`)
 
 1. Send `GET /api/v1/files?prefix=<prefix>` to the API server
 2. Display the file list (path, size, last modified date)
+3. Supports pagination via `next_token`
 
 ### Sync (`solidrop sync`)
 
-1. Send `GET /api/v1/files` to get the full remote file list
-2. Compare with local files in the download directory
-3. Download any new or updated files (by content_hash comparison)
+1. Send `GET /api/v1/files?prefix=transfer/` with pagination
+2. For each remote file, compute the local path by stripping the `transfer/` prefix and `.enc` suffix, preserving the directory structure under `download_dir`
+3. Skip files that already exist locally
+4. Download, decrypt, and save new files (creating subdirectories as needed)
+
+Example: `transfer/2026-02-11/reference.png.enc` → `download_dir/2026-02-11/reference.png`
+
+### Delete (`solidrop delete <remote_path>`)
+
+1. Send `DELETE /api/v1/files/{path}` (path segments are percent-encoded)
+
+### Move (`solidrop move <from> <to>`)
+
+1. Send `POST /api/v1/files/move` with `{ from, to }`
 
 ## Design Decisions
 
@@ -130,11 +144,14 @@ These flows are defined in README §5.2 and documented as TODOs in the stub file
 |---|---|---|
 | `solidrop-crypto` | path | Shared encryption library |
 | `anyhow` | 1 | Error handling (binary crate) |
+| `chrono` | 0.4 | Timestamp formatting for upload paths |
 | `clap` | 4 (derive) | CLI argument parsing |
+| `directories` | 5 | Platform-specific config paths |
+| `hex` | 0.4 | Master key hex decoding |
+| `percent-encoding` | 2 | URL path segment encoding |
 | `reqwest` | 0.12 (rustls-tls) | HTTP client for API calls |
 | `serde` / `serde_json` | 1 | JSON serialization |
+| `thiserror` | 1 | Error type derives |
 | `tokio` | 1 (full) | Async runtime |
 | `toml` | 0.8 | Config file parsing |
 | `tracing` / `tracing-subscriber` | 0.1 / 0.3 | Structured logging |
-| `thiserror` | 1 | Error type derives |
-| `directories` | 5 | Platform-specific config paths |

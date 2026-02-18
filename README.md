@@ -1,8 +1,8 @@
 # SoliDrop — iPad お絵かきデータ基盤 要件定義書・設計書
 
-> **ドキュメントバージョン:** 0.1.0（Phase 1 MVP 着手前）
-> **最終更新:** 2026-02-11
-> **ステータス:** レビュー済み・実装着手可
+> **ドキュメントバージョン:** 0.1.1（Phase 1 実装中）
+> **最終更新:** 2026-02-19
+> **ステータス:** Phase 1 実装中（API server + CLI 完了、Flutter app 未着手）
 
 ---
 
@@ -371,12 +371,12 @@ GET /api/v1/files?prefix=active/&limit=100&next_token=...
 
 - `content_hash` はS3オブジェクトのメタデータタグから取得。
 
-#### `DELETE /api/v1/files/{encoded_path}`
+#### `DELETE /api/v1/files/*path`
 
-ファイル削除。
+ファイル削除。パスにスラッシュが含まれるS3キーに対応するため、axum の `*path` ワイルドカードでパス全体をキャプチャする。スラッシュはURLパスセパレータとして維持し、各セグメント内の予約文字のみパーセントエンコードする。
 
 ```
-DELETE /api/v1/files/active%2F2025-06%2Fold-sketch.clip.enc
+DELETE /api/v1/files/active/2025-06/old-sketch.clip.enc
 ```
 
 ```json
@@ -614,7 +614,6 @@ api_key_env = "SOLIDROP_API_KEY"  # 環境変数名
 
 [storage]
 download_dir = "~/Art/synced"
-upload_dir = "~/Art/to-upload"
 
 [crypto]
 # マスターキーの取得先（OS credential store）
