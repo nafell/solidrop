@@ -113,6 +113,16 @@ Shared across all route handlers via axum's `State` extractor.
 
 **Rationale (README 2.2 §8):** The VPS is outside AWS. Proxying file data would mean VPS-to-S3 bandwidth costs and increased latency. With presigned URLs, the server only generates a URL (~1KB per request), and clients upload/download directly to/from S3. This makes VPS bandwidth usage negligible.
 
+### Best-Effort Move — THOUGHT-THROUGH
+
+**Decision:** The move endpoint (`POST /api/v1/files/move`) performs a copy-then-delete. If the copy succeeds but the delete fails, the object exists at both source and destination. The server returns 500 and logs the inconsistent state.
+
+**Rationale:** S3 has no atomic rename/move operation. Implementing compensation (e.g., rolling back the copy on delete failure) adds complexity with marginal benefit for a single-user system. The client should treat move as idempotent — retrying a failed move is safe because `copy_object` overwrites the destination and `delete_object` is idempotent.
+
+**Implications for clients:**
+- On success (200): source is deleted, destination exists.
+- On failure (500): destination may or may not exist. Source still exists. Safe to retry.
+
 ### No Database — THOUGHT-THROUGH
 
 **Decision:** No DynamoDB, Firestore, or PostgreSQL. S3 ListObjects + object metadata tags are the source of truth.

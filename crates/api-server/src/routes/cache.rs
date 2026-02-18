@@ -1,7 +1,9 @@
 use axum::{routing::post, Json, Router};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
+use crate::error::AppError;
 
 #[derive(Deserialize)]
 struct CacheReportRequest {
@@ -16,6 +18,14 @@ struct LocalFileEntry {
     content_hash: String,
     size_bytes: u64,
     last_used: String,
+}
+
+/// Internal representation with parsed timestamp for correct chronological sorting.
+struct ParsedEntry {
+    path: String,
+    size_bytes: u64,
+    last_used_raw: String,
+    last_used: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -34,24 +44,50 @@ pub fn router() -> Router<AppState> {
     Router::new().route("/api/v1/cache/report", post(cache_report))
 }
 
-async fn cache_report(Json(req): Json<CacheReportRequest>) -> Json<CacheReportResponse> {
-    let total_bytes: u64 = req.local_files.iter().map(|f| f.size_bytes).sum();
+async fn cache_report(
+    Json(req): Json<CacheReportRequest>,
+) -> Result<Json<CacheReportResponse>, AppError> {
+    // Parse all timestamps upfront — reject the entire request on any invalid entry
+    let mut parsed: Vec<ParsedEntry> = req
+        .local_files
+        .into_iter()
+        .map(|entry| {
+            let ts: DateTime<Utc> = entry
+                .last_used
+                .parse::<DateTime<chrono::FixedOffset>>()
+                .map(|dt| dt.with_timezone(&Utc))
+                .or_else(|_| entry.last_used.parse::<DateTime<Utc>>())
+                .map_err(|_| {
+                    AppError::BadRequest(format!(
+                        "invalid last_used timestamp: {}",
+                        entry.last_used
+                    ))
+                })?;
+            Ok(ParsedEntry {
+                path: entry.path,
+                size_bytes: entry.size_bytes,
+                last_used_raw: entry.last_used,
+                last_used: ts,
+            })
+        })
+        .collect::<Result<Vec<_>, AppError>>()?;
+
+    let total_bytes: u64 = parsed.iter().map(|f| f.size_bytes).sum();
 
     if total_bytes <= req.storage_limit_bytes {
-        return Json(CacheReportResponse {
+        return Ok(Json(CacheReportResponse {
             evict_candidates: vec![],
-        });
+        }));
     }
 
     let need_to_free = total_bytes - req.storage_limit_bytes;
 
-    let mut sorted = req.local_files;
-    sorted.sort_by(|a, b| a.last_used.cmp(&b.last_used));
+    parsed.sort_by_key(|e| e.last_used);
 
     let mut freed: u64 = 0;
     let mut evict_candidates = Vec::new();
 
-    for entry in sorted {
+    for entry in parsed {
         if freed >= need_to_free {
             break;
         }
@@ -59,11 +95,11 @@ async fn cache_report(Json(req): Json<CacheReportRequest>) -> Json<CacheReportRe
         evict_candidates.push(EvictCandidate {
             path: entry.path,
             reason: "lru".to_string(),
-            last_used: entry.last_used,
+            last_used: entry.last_used_raw,
         });
     }
 
-    Json(CacheReportResponse { evict_candidates })
+    Ok(Json(CacheReportResponse { evict_candidates }))
 }
 
 #[cfg(test)]
