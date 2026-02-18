@@ -1,7 +1,10 @@
-use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
+use aws_sdk_s3::presigning::PresigningConfig;
+use axum::{extract::State, routing::post, Json, Router};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 use super::AppState;
+use crate::error::AppError;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -17,25 +20,8 @@ struct UploadRequest {
 }
 
 #[derive(Serialize)]
-struct NotImplementedResponse {
-    error: &'static str,
-}
-
-async fn presign_upload(
-    State(state): State<AppState>,
-    Json(body): Json<UploadRequest>,
-) -> (StatusCode, Json<NotImplementedResponse>) {
-    let _request_shape = (&body.path, &body.content_hash, body.size_bytes);
-    let _configured_bucket = &state.config.s3_bucket;
-    let _s3_client = &state.s3;
-
-    // TODO: Implement presigned upload URL generation
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(NotImplementedResponse {
-            error: "presigned upload URL generation is not implemented yet",
-        }),
-    )
+struct UploadResponse {
+    upload_url: String,
 }
 
 #[derive(Deserialize)]
@@ -43,19 +29,76 @@ struct DownloadRequest {
     path: String,
 }
 
+#[derive(Serialize)]
+struct DownloadResponse {
+    download_url: String,
+}
+
+async fn presign_upload(
+    State(state): State<AppState>,
+    Json(body): Json<UploadRequest>,
+) -> Result<Json<UploadResponse>, AppError> {
+    if body.path.is_empty() {
+        return Err(AppError::BadRequest("path must not be empty".into()));
+    }
+
+    let presigning_config = PresigningConfig::expires_in(Duration::from_secs(3600))
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let presigned = state
+        .s3
+        .put_object()
+        .bucket(&state.config.s3_bucket)
+        .key(&body.path)
+        .metadata("content-hash", &body.content_hash)
+        .metadata("original-size", body.size_bytes.to_string())
+        .presigned(presigning_config)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let url = maybe_rewrite_url(presigned.uri().to_string(), &state);
+
+    Ok(Json(UploadResponse { upload_url: url }))
+}
+
 async fn presign_download(
     State(state): State<AppState>,
     Json(body): Json<DownloadRequest>,
-) -> (StatusCode, Json<NotImplementedResponse>) {
-    let _requested_path = &body.path;
-    let _configured_bucket = &state.config.s3_bucket;
-    let _s3_client = &state.s3;
+) -> Result<Json<DownloadResponse>, AppError> {
+    if body.path.is_empty() {
+        return Err(AppError::BadRequest("path must not be empty".into()));
+    }
 
-    // TODO: Implement presigned download URL generation
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(NotImplementedResponse {
-            error: "presigned download URL generation is not implemented yet",
-        }),
-    )
+    let presigning_config = PresigningConfig::expires_in(Duration::from_secs(3600))
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let presigned = state
+        .s3
+        .get_object()
+        .bucket(&state.config.s3_bucket)
+        .key(&body.path)
+        .presigned(presigning_config)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let url = maybe_rewrite_url(presigned.uri().to_string(), &state);
+
+    Ok(Json(DownloadResponse { download_url: url }))
+}
+
+/// If both `s3_public_endpoint_url` and `s3_endpoint_url` are configured,
+/// rewrite the presigned URL so it is accessible from outside the Docker network.
+fn maybe_rewrite_url(url: String, state: &AppState) -> String {
+    if let (Some(public_endpoint), Some(internal_endpoint)) = (
+        &state.config.s3_public_endpoint_url,
+        &state.config.s3_endpoint_url,
+    ) {
+        crate::s3_client::rewrite_presigned_url_for_public_access(
+            &url,
+            internal_endpoint,
+            public_endpoint,
+        )
+    } else {
+        url
+    }
 }

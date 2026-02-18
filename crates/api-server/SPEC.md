@@ -20,41 +20,57 @@ The server is a thin orchestration layer. It holds IAM credentials and translate
 | Config (env vars) | `src/config.rs` | Complete |
 | Error responses | `src/error.rs` | Complete |
 | S3 client init | `src/s3_client.rs` | Complete (custom endpoint + path-style support) |
-| Route aggregation | `src/routes/mod.rs` | Complete |
+| Route aggregation | `src/routes/mod.rs` | Complete (public + authenticated split) |
 | Health check | `src/routes/health.rs` | Complete |
-| Presigned URLs | `src/routes/presign.rs` | **Stub** — types defined, returns empty URLs |
-| File listing | `src/routes/files.rs` | **Stub** — types defined, returns empty list |
-| Auth middleware | — | **Not started** |
-| Delete endpoint | — | **Not started** |
-| Move endpoint | — | **Not started** |
-| Cache report | — | **Not started** |
+| Auth middleware | `src/middleware.rs` | Complete (Bearer token via `from_fn_with_state`) |
+| Presigned URLs | `src/routes/presign.rs` | Complete (upload + download with URL rewriting) |
+| File listing | `src/routes/files.rs` | Complete (S3 ListObjects + HEAD for metadata) |
+| Delete endpoint | `src/routes/delete.rs` | Complete (HEAD check + delete) |
+| Move endpoint | `src/routes/file_move.rs` | Complete (copy + delete) |
+| Cache report | `src/routes/cache.rs` | Complete (LRU eviction computation) |
+| Library re-exports | `src/lib.rs` | Complete (enables integration test imports) |
+| Integration tests | `tests/api_test.rs` | Complete (7 non-S3 + 6 S3/MinIO tests) |
 
 ## API Endpoints
 
 Defined in README Section 7.2. The following table shows the full target API surface and current scaffold state.
 
-| Method | Path | Purpose | Scaffolded |
+| Method | Path | Purpose | Status |
 |---|---|---|---|
-| `GET` | `/health` | Health check | Yes (complete) |
-| `POST` | `/api/v1/presign/upload` | Presigned upload URL | Yes (stub) |
-| `POST` | `/api/v1/presign/download` | Presigned download URL | Yes (stub) |
-| `GET` | `/api/v1/files` | List files from S3 | Yes (stub) |
-| `DELETE` | `/api/v1/files/{encoded_path}` | Delete a file | No |
-| `POST` | `/api/v1/files/move` | Move file (active ↔ archived) | No |
-| `POST` | `/api/v1/cache/report` | iPad cache state report + eviction candidates | No |
+| `GET` | `/health` | Health check (no auth) | Complete |
+| `POST` | `/api/v1/presign/upload` | Presigned upload URL | Complete |
+| `POST` | `/api/v1/presign/download` | Presigned download URL | Complete |
+| `GET` | `/api/v1/files` | List files from S3 | Complete |
+| `DELETE` | `/api/v1/files/*path` | Delete a file | Complete |
+| `POST` | `/api/v1/files/move` | Move file (active ↔ archived) | Complete |
+| `POST` | `/api/v1/cache/report` | iPad cache state report + eviction candidates | Complete |
 
 ### Request/Response Structures (defined in code)
 
 **Presign Upload:**
 - Request: `{ path: String, content_hash: String, size_bytes: u64 }`
-- Response: `{ url: String, expires_in: u64 }`
+- Response: `{ upload_url: String }`
+- Sets S3 object metadata: `content-hash`, `original-size`
 
 **Presign Download:**
 - Request: `{ path: String }`
-- Response: `{ url: String, expires_in: u64 }`
+- Response: `{ download_url: String }`
 
 **File Listing:**
-- Response: `{ files: [{ path, size_bytes, last_modified, content_hash }], next_token: Option<String> }`
+- Query params: `prefix`, `limit` (1-100, default 100), `next_token`
+- Response: `{ files: [{ key, size, last_modified, content_hash }], next_token: Option<String> }`
+
+**Delete:**
+- Path param: `*path` (wildcard, captures slashes)
+- Response: `{ deleted: true }`
+
+**Move:**
+- Request: `{ from: String, to: String }`
+- Response: `{ moved: true }`
+
+**Cache Report:**
+- Request: `{ local_files: [{ path, content_hash, size_bytes, last_used }], storage_limit_bytes: u64 }`
+- Response: `{ evict_candidates: [{ path, reason: "lru", last_used }] }`
 
 **Error Response (all endpoints):**
 - `{ error: { code: String, message: String } }`
