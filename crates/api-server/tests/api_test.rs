@@ -179,6 +179,66 @@ async fn test_cache_report_empty_files() {
     assert_eq!(body["evict_candidates"], json!([]));
 }
 
+// ─── Error/edge-case tests (no S3 required) ────────────────
+
+#[tokio::test]
+async fn test_cache_report_invalid_timestamp() {
+    let app = test_app().await;
+    let server = TestServer::new(app).unwrap();
+
+    let (header_name, header_val) = auth_header();
+    let resp = server
+        .post("/api/v1/cache/report")
+        .add_header(header_name.clone(), header_val.clone())
+        .json(&json!({
+            "local_files": [
+                {"path": "a.enc", "content_hash": "h1", "size_bytes": 100, "last_used": "not-a-date"}
+            ],
+            "storage_limit_bytes": 50
+        }))
+        .await;
+
+    resp.assert_status(axum::http::StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = resp.json();
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("invalid last_used timestamp"));
+}
+
+#[tokio::test]
+async fn test_cache_report_timezone_handling() {
+    // Two entries representing the same instant in different TZ notations.
+    // "2026-01-01T09:00:00+09:00" == "2026-01-01T00:00:00Z" (UTC midnight)
+    // "2026-01-02T00:00:00Z" is later.
+    // If we naively string-sort, "2026-01-01T09:00:00+09:00" > "2026-01-02T00:00:00Z"
+    // because '9' > '0'. Correct chronological sort should evict the +09:00 entry first
+    // (or equally with the Z entry) since they represent the same instant.
+    let app = test_app().await;
+    let server = TestServer::new(app).unwrap();
+
+    let (header_name, header_val) = auth_header();
+    let resp = server
+        .post("/api/v1/cache/report")
+        .add_header(header_name.clone(), header_val.clone())
+        .json(&json!({
+            "local_files": [
+                {"path": "later.enc", "content_hash": "h1", "size_bytes": 100, "last_used": "2026-01-02T00:00:00Z"},
+                {"path": "earlier-tz.enc", "content_hash": "h2", "size_bytes": 100, "last_used": "2026-01-01T09:00:00+09:00"}
+            ],
+            "storage_limit_bytes": 100
+        }))
+        .await;
+
+    resp.assert_status_ok();
+    let body: serde_json::Value = resp.json();
+    let candidates = body["evict_candidates"].as_array().unwrap();
+    // Need to free 100 bytes. The +09:00 entry (= UTC midnight Jan 1) is older/equal
+    // to the Z entry (UTC midnight Jan 2), so it should be evicted first.
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0]["path"], "earlier-tz.enc");
+}
+
 // ─── S3 Integration Tests (require MinIO) ──────────────────
 
 #[tokio::test]
@@ -390,4 +450,99 @@ async fn test_move_file() {
         .delete("/api/v1/files/integration-test/move-dest.enc")
         .add_header(header_name.clone(), header_val.clone())
         .await;
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_move_encoded_key() {
+    let app = test_app().await;
+    let server = TestServer::new(app).unwrap();
+    let (header_name, header_val) = auth_header();
+
+    // Upload a file with spaces in the name
+    let resp = server
+        .post("/api/v1/presign/upload")
+        .add_header(header_name.clone(), header_val.clone())
+        .json(&json!({
+            "path": "integration-test/my drawing (1).enc",
+            "content_hash": "spacehash",
+            "size_bytes": 4
+        }))
+        .await;
+    resp.assert_status_ok();
+    let upload_url = resp.json::<serde_json::Value>()["upload_url"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let client = reqwest::Client::new();
+    client
+        .put(&upload_url)
+        .header("x-amz-meta-content-hash", "spacehash")
+        .header("x-amz-meta-original-size", "4")
+        .body("test")
+        .send()
+        .await
+        .unwrap();
+
+    // Move the file (key with spaces)
+    let (header_name, header_val) = auth_header();
+    let resp = server
+        .post("/api/v1/files/move")
+        .add_header(header_name.clone(), header_val.clone())
+        .json(&json!({
+            "from": "integration-test/my drawing (1).enc",
+            "to": "integration-test/my drawing (moved).enc"
+        }))
+        .await;
+    resp.assert_status_ok();
+    let body: serde_json::Value = resp.json();
+    assert_eq!(body["moved"], true);
+
+    // Cleanup
+    let (header_name, header_val) = auth_header();
+    server
+        .delete("/api/v1/files/integration-test/my drawing (moved).enc")
+        .add_header(header_name.clone(), header_val.clone())
+        .await;
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_delete_s3_error_not_masked() {
+    // This test verifies that S3 errors other than 404 are not mapped to NotFound.
+    // We create a server with an invalid S3 endpoint to simulate connection failure.
+    use solidrop_api_server::config::AppConfig;
+    use solidrop_api_server::routes::{router_with_auth, AppState};
+    use solidrop_api_server::s3_client::create_s3_client;
+
+    let config = AppConfig {
+        port: 3000,
+        s3_bucket: "solidrop-dev".into(),
+        api_key: TEST_API_KEY.into(),
+        aws_region: "us-east-1".into(),
+        // Point to a non-existent S3 endpoint to trigger connection error
+        s3_endpoint_url: Some("http://localhost:1".into()),
+        s3_force_path_style: true,
+        s3_public_endpoint_url: Some("http://localhost:1".into()),
+    };
+    let s3 = create_s3_client(&config).await;
+    let state = AppState {
+        s3,
+        config: config.clone(),
+    };
+    let app = Router::new()
+        .merge(router_with_auth(state.clone()))
+        .with_state(state);
+
+    let server = TestServer::new(app).unwrap();
+    let (header_name, header_val) = auth_header();
+
+    let resp = server
+        .delete("/api/v1/files/some-file.enc")
+        .add_header(header_name.clone(), header_val.clone())
+        .await;
+
+    // Should be 500 (internal error), NOT 404
+    resp.assert_status(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
 }
