@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -27,17 +28,14 @@ pub struct CryptoConfig {
 }
 
 impl CliConfig {
-    pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn load() -> Result<Self> {
         let config_dir = directories::ProjectDirs::from("dev", "nafell", "solidrop")
-            .ok_or("could not determine config directory")?;
+            .context("could not determine config directory")?;
         let config_path = config_dir.config_dir().join("config.toml");
-        let content = std::fs::read_to_string(&config_path).map_err(|e| {
-            format!(
-                "could not read config file at {}: {e}",
-                config_path.display()
-            )
-        })?;
-        let config: CliConfig = toml::from_str(&content)?;
+        let content = std::fs::read_to_string(&config_path)
+            .with_context(|| format!("could not read config file at {}", config_path.display()))?;
+        let config: CliConfig = toml::from_str(&content)
+            .with_context(|| format!("failed to parse config file at {}", config_path.display()))?;
         Ok(config)
     }
 }
