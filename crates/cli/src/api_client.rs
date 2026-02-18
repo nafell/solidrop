@@ -1,8 +1,17 @@
 use anyhow::{bail, Context, Result};
+use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::config::CliConfig;
+
+/// Characters that are safe in a URL path segment (not percent-encoded).
+/// We keep alphanumerics, `-`, `_`, `.`, and `~` unencoded per RFC 3986.
+const PATH_SEGMENT_ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'~');
 
 pub struct ApiClient {
     client: Client,
@@ -165,9 +174,10 @@ impl ApiClient {
 
     /// DELETE /files/{path} — delete a remote file.
     pub async fn delete_file(&self, path: &str) -> Result<()> {
+        let encoded_path = encode_path_segments(path);
         let resp = self
             .client
-            .delete(format!("{}/files/{}", self.base_url, path))
+            .delete(format!("{}/files/{}", self.base_url, encoded_path))
             .bearer_auth(&self.api_key)
             .send()
             .await
@@ -258,4 +268,14 @@ impl ApiClient {
 
         bail!("API error (HTTP {}): {}", status, body_text);
     }
+}
+
+/// Percent-encode each segment of a `/`-separated path, preserving `/` as-is.
+///
+/// For example, `active/2026-02/my file.enc` becomes `active/2026-02/my%20file.enc`.
+fn encode_path_segments(path: &str) -> String {
+    path.split('/')
+        .map(|seg| utf8_percent_encode(seg, PATH_SEGMENT_ENCODE_SET).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
 }
