@@ -1,9 +1,12 @@
-//! Integration tests for the solidrop CLI.
+//! API contract tests for the solidrop CLI.
 //!
-//! These tests require docker-compose (MinIO + API server) to be running:
+//! These tests verify the API server contract using reqwest directly (not through the CLI binary).
+//! They require docker-compose (MinIO + API server) to be running:
 //!   docker compose up -d
 //!   cargo test -p solidrop-cli -- --ignored
 //!   docker compose down
+//!
+//! TODO: Add true CLI E2E tests using `assert_cmd` that invoke the `solidrop` binary.
 
 /// Test API endpoint (API server running via docker-compose).
 const API_ENDPOINT: &str = "http://localhost:3000/api/v1";
@@ -66,16 +69,12 @@ async fn presign_download(client: &reqwest::Client, path: &str) -> String {
 }
 
 async fn list_files(client: &reqwest::Client, prefix: Option<&str>) -> Vec<serde_json::Value> {
-    let mut url = format!("{API_ENDPOINT}/files");
+    let url = format!("{API_ENDPOINT}/files");
+    let mut req = client.get(&url).bearer_auth(API_KEY);
     if let Some(p) = prefix {
-        url = format!("{url}?prefix={p}");
+        req = req.query(&[("prefix", p)]);
     }
-    let resp = client
-        .get(&url)
-        .bearer_auth(API_KEY)
-        .send()
-        .await
-        .expect("list_files request failed");
+    let resp = req.send().await.expect("list_files request failed");
     assert!(
         resp.status().is_success(),
         "list_files failed: {}",
@@ -86,8 +85,16 @@ async fn list_files(client: &reqwest::Client, prefix: Option<&str>) -> Vec<serde
 }
 
 async fn delete_file(client: &reqwest::Client, path: &str) {
+    let encoded_path: String = path
+        .split('/')
+        .map(|seg| {
+            percent_encoding::utf8_percent_encode(seg, percent_encoding::NON_ALPHANUMERIC)
+                .to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("/");
     let resp = client
-        .delete(format!("{API_ENDPOINT}/files/{path}"))
+        .delete(format!("{API_ENDPOINT}/files/{encoded_path}"))
         .bearer_auth(API_KEY)
         .send()
         .await
