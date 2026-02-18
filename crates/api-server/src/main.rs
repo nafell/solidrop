@@ -5,6 +5,8 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
+mod error;
+mod middleware;
 mod routes;
 mod s3_client;
 
@@ -27,7 +29,7 @@ async fn main() {
     };
 
     let app = Router::new()
-        .merge(routes::router())
+        .merge(routes::router_with_auth(state.clone()))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
