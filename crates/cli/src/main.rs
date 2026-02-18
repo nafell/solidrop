@@ -61,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Upload { file_path } => {
             let key = master_key::acquire_master_key(&config.crypto)?;
-            commands::upload::run(&config, &api, &key, &file_path).await?;
+            commands::upload::run(&api, &key, &file_path).await?;
         }
         Commands::Download { remote_path } => {
             let key = master_key::acquire_master_key(&config.crypto)?;

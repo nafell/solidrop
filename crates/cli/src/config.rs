@@ -18,7 +18,6 @@ pub struct ServerConfig {
 #[derive(Debug, Deserialize)]
 pub struct StorageConfig {
     pub download_dir: PathBuf,
-    pub upload_dir: PathBuf,
 }
 
 #[derive(Debug, Deserialize)]
