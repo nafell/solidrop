@@ -3,14 +3,8 @@ use chrono::Utc;
 use std::path::Path;
 
 use crate::api_client::ApiClient;
-use crate::config::CliConfig;
 
-pub async fn run(
-    _config: &CliConfig,
-    api: &ApiClient,
-    key: &[u8; 32],
-    file_path: &str,
-) -> Result<()> {
+pub async fn run(api: &ApiClient, key: &[u8; 32], file_path: &str) -> Result<()> {
     let path = Path::new(file_path);
     let filename = path
         .file_name()
