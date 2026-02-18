@@ -21,7 +21,12 @@ pub fn acquire_master_key(_config: &CryptoConfig) -> Result<[u8; 32]> {
         )
     })?;
 
-    let bytes = hex::decode(&hex_key).with_context(|| {
+    parse_master_key_hex(&hex_key)
+}
+
+/// Parse a hex-encoded master key string into a 32-byte array.
+fn parse_master_key_hex(hex_key: &str) -> Result<[u8; 32]> {
+    let bytes = hex::decode(hex_key).with_context(|| {
         format!("{MASTER_KEY_ENV} is not valid hex (expected 64 hex characters)")
     })?;
 
@@ -51,15 +56,15 @@ mod tests {
     #[test]
     fn test_valid_master_key() {
         let key_hex = "aa".repeat(32); // 64 hex chars = 32 bytes
-        std::env::set_var(MASTER_KEY_ENV, &key_hex);
-        let result = acquire_master_key(&dummy_config());
-        std::env::remove_var(MASTER_KEY_ENV);
+        let result = parse_master_key_hex(&key_hex);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), [0xaa; 32]);
     }
 
     #[test]
     fn test_missing_env_var() {
+        // This is the only test that touches the environment, but it only removes
+        // the var (idempotent) so parallel risk is minimal.
         std::env::remove_var(MASTER_KEY_ENV);
         let result = acquire_master_key(&dummy_config());
         assert!(result.is_err());
@@ -69,9 +74,7 @@ mod tests {
 
     #[test]
     fn test_invalid_hex() {
-        std::env::set_var(MASTER_KEY_ENV, "not-valid-hex!");
-        let result = acquire_master_key(&dummy_config());
-        std::env::remove_var(MASTER_KEY_ENV);
+        let result = parse_master_key_hex("not-valid-hex!");
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(err.contains("not valid hex"), "error: {err}");
@@ -79,9 +82,7 @@ mod tests {
 
     #[test]
     fn test_wrong_length() {
-        std::env::set_var(MASTER_KEY_ENV, "aabb"); // 2 bytes, not 32
-        let result = acquire_master_key(&dummy_config());
-        std::env::remove_var(MASTER_KEY_ENV);
+        let result = parse_master_key_hex("aabb"); // 2 bytes, not 32
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(err.contains("32 bytes"), "error: {err}");
