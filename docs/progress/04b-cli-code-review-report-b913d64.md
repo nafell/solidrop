@@ -1,4 +1,6 @@
-# 05 — CLI Code Review Report (`b913d6483dc03f4e8ca2b915a6a301471d230a63`)
+# 04b — CLI Code Review Report (`b913d6483dc03f4e8ca2b915a6a301471d230a63`)
+
+> **Status: All 5 findings resolved** — see `04c-cli-review-fixes-report.md`
 
 対象コミット:
 - `b913d6483dc03f4e8ca2b915a6a301471d230a63`
