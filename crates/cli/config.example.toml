@@ -1,0 +1,29 @@
+# SoliDrop CLI Configuration
+# Copy this file to the platform-specific config directory and rename to config.toml:
+#
+#   Linux:   ~/.config/solidrop/config.toml
+#   macOS:   ~/Library/Application Support/dev.nafell.solidrop/config.toml
+#   Windows: %APPDATA%\nafell\solidrop\config\config.toml
+#
+# For local development, point the endpoint at the Docker-hosted API server.
+
+[server]
+# Base URL of the solidrop API server
+endpoint = "http://localhost:3001"
+
+# Name of the environment variable that holds the API key.
+# Set the variable in your shell: export SOLIDROP_API_KEY=dev-api-key
+api_key_env = "SOLIDROP_API_KEY"
+
+[storage]
+# Directory where downloaded files are saved
+download_dir = "/tmp/solidrop/downloads"
+
+# Directory that is watched / scanned for files to upload
+upload_dir = "/tmp/solidrop/uploads"
+
+[crypto]
+# Keychain service name used to look up the encryption passphrase.
+# The passphrase is stored in the OS keychain under this service+account pair.
+keychain_service = "solidrop"
+keychain_account = "encryption-key"

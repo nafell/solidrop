@@ -1,6 +1,9 @@
 use clap::{Parser, Subcommand};
 
+mod api;
 mod commands;
+mod config;
+mod key;
 
 #[derive(Parser)]
 #[command(

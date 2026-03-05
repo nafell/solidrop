@@ -1,11 +1,50 @@
+use anyhow::{bail, Context, Result};
+use std::path::Path;
+
+use solidrop_crypto::{encrypt::encrypt, hash::sha256_hex};
+
+use super::CmdContext;
+
 pub async fn run(file_path: &str) -> anyhow::Result<()> {
-    tracing::info!("uploading {file_path}");
-    // TODO: Implement upload flow:
-    // 1. Read file
-    // 2. Compute SHA-256 hash
-    // 3. Encrypt with AES-256-GCM
-    // 4. Request presigned upload URL from API server
-    // 5. PUT encrypted data to S3 via presigned URL
-    println!("upload not yet implemented");
+    let ctx = CmdContext::load()?;
+
+    let path = Path::new(file_path);
+    if !path.exists() {
+        bail!("file not found: {file_path}");
+    }
+
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .with_context(|| format!("invalid filename in path: {file_path}"))?;
+
+    // Remote S3 key: original filename with ".enc" appended
+    let remote_path = format!("{filename}.enc");
+
+    println!("Reading {file_path}...");
+    let plaintext = std::fs::read(path).with_context(|| format!("failed to read {file_path}"))?;
+
+    // SHA-256 hash of the plaintext (before encryption) for integrity verification
+    let content_hash = sha256_hex(&plaintext);
+    tracing::debug!(hash = %content_hash, "computed content hash");
+
+    println!("Encrypting ({} bytes)...", plaintext.len());
+    let ciphertext = encrypt(&ctx.master_key, &plaintext)
+        .context("encryption failed")?;
+
+    println!("Requesting presigned upload URL for {remote_path}...");
+    let presign = ctx
+        .api
+        .presign_upload(&remote_path, &content_hash, ciphertext.len() as u64)
+        .await
+        .context("failed to get presigned upload URL")?;
+
+    println!("Uploading {} bytes to S3...", ciphertext.len());
+    ctx.api
+        .put_object(&presign.url, ciphertext)
+        .await
+        .context("upload to S3 failed")?;
+
+    println!("✓ Uploaded {filename} → {remote_path}");
     Ok(())
 }
