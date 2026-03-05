@@ -19,29 +19,29 @@ The server is a thin orchestration layer. It holds IAM credentials and translate
 | Server bootstrap | `src/main.rs` | Complete |
 | Config (env vars) | `src/config.rs` | Complete |
 | Error responses | `src/error.rs` | Complete |
-| S3 client init | `src/s3_client.rs` | Complete (custom endpoint + path-style support) |
+| S3 client init | `src/s3_client.rs` | Complete (two clients: internal + presigning) |
 | Route aggregation | `src/routes/mod.rs` | Complete |
 | Health check | `src/routes/health.rs` | Complete |
-| Presigned URLs | `src/routes/presign.rs` | **Stub** — types defined, returns empty URLs |
-| File listing | `src/routes/files.rs` | **Stub** — types defined, returns empty list |
-| Auth middleware | — | **Not started** |
+| Auth middleware | `src/routes/mod.rs` | Complete (Bearer token, `/api/v1/*` only) |
+| Presigned URLs | `src/routes/presign.rs` | Complete |
+| File listing | `src/routes/files.rs` | Complete (ETag as content_hash; real SHA-256 deferred) |
 | Delete endpoint | — | **Not started** |
 | Move endpoint | — | **Not started** |
 | Cache report | — | **Not started** |
 
 ## API Endpoints
 
-Defined in README Section 7.2. The following table shows the full target API surface and current scaffold state.
+Defined in README Section 7.2.
 
-| Method | Path | Purpose | Scaffolded |
+| Method | Path | Purpose | Status |
 |---|---|---|---|
-| `GET` | `/health` | Health check | Yes (complete) |
-| `POST` | `/api/v1/presign/upload` | Presigned upload URL | Yes (stub) |
-| `POST` | `/api/v1/presign/download` | Presigned download URL | Yes (stub) |
-| `GET` | `/api/v1/files` | List files from S3 | Yes (stub) |
-| `DELETE` | `/api/v1/files/{encoded_path}` | Delete a file | No |
-| `POST` | `/api/v1/files/move` | Move file (active ↔ archived) | No |
-| `POST` | `/api/v1/cache/report` | iPad cache state report + eviction candidates | No |
+| `GET` | `/health` | Health check | Complete |
+| `POST` | `/api/v1/presign/upload` | Presigned upload URL | Complete |
+| `POST` | `/api/v1/presign/download` | Presigned download URL | Complete |
+| `GET` | `/api/v1/files` | List files from S3 | Complete |
+| `DELETE` | `/api/v1/files/{encoded_path}` | Delete a file | Not started |
+| `POST` | `/api/v1/files/move` | Move file (active ↔ archived) | Not started |
+| `POST` | `/api/v1/cache/report` | iPad cache state report + eviction candidates | Not started |
 
 ### Request/Response Structures (defined in code)
 
@@ -72,7 +72,7 @@ Loaded from environment variables in `config.rs`:
 | `AWS_REGION` | No | `ap-northeast-1` | AWS region |
 | `S3_ENDPOINT_URL` | No | — | Custom S3 endpoint (e.g. `http://minio:9000` for local dev) |
 | `S3_FORCE_PATH_STYLE` | No | `false` | Path-style S3 addressing (required for MinIO) |
-| `S3_PUBLIC_ENDPOINT_URL` | No | — | Public endpoint for presigned URL rewriting |
+| `S3_PUBLIC_ENDPOINT_URL` | No | — | Public endpoint for presigning client (see Two S3 Clients below) |
 
 AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) are handled by the AWS SDK's standard credential chain, passed through in `docker-compose.yml`.
 
@@ -82,7 +82,8 @@ When `S3_ENDPOINT_URL` is unset, the AWS SDK uses standard AWS S3 endpoints (pro
 
 ```rust
 struct AppState {
-    s3: aws_sdk_s3::Client,
+    s3: aws_sdk_s3::Client,         // internal endpoint — ListObjects, etc.
+    s3_presign: aws_sdk_s3::Client, // public endpoint — presigned URL generation only
     config: AppConfig,
 }
 ```
@@ -123,15 +124,26 @@ Shared across all route handlers via axum's `State` extractor.
 
 **Rationale (README §10.1):** Long enough for large file uploads over slow connections. Short enough to limit exposure if a URL is leaked. For 55MB max file size, even a 1 Mbps connection would complete in ~7 minutes.
 
+### Two S3 Clients for Presigning — THOUGHT-THROUGH
+
+**Decision:** `AppState` holds two S3 clients. `s3` uses `S3_ENDPOINT_URL` (internal Docker hostname `http://minio:9000` in local dev). `s3_presign` uses `S3_PUBLIC_ENDPOINT_URL` (`http://localhost:9000` in local dev). Presign handlers use `s3_presign` exclusively.
+
+**Rationale:** AWS Signature Version 4 binds the signature to the `host` header. A presigned URL generated using `minio:9000` as the host cannot be rewritten to `localhost:9000` — doing so changes the canonical request and invalidates the HMAC. The only correct approach is to generate the presigned URL with the host that clients will connect to. In production, both env vars are unset and both clients use the AWS default endpoint, so there is no difference.
+
 ## Deployment
 
 ### Dockerfile
 
-Multi-stage build:
-1. **Build stage:** `rust:1.93-slim` — compiles `solidrop-api-server` in release mode. Includes a dummy CLI crate to satisfy workspace dependencies without building the full CLI.
-2. **Runtime stage:** `debian:bookworm-slim` with `ca-certificates` (for HTTPS to AWS). Binary at `/usr/local/bin/solidrop-api-server`. Exposes port 3000.
+Three-stage build (cargo-chef pattern):
+1. **Planner stage:** `cargo chef prepare` extracts the dependency recipe (`recipe.json`).
+2. **Builder stage:** `cargo chef cook` compiles all dependencies (cached layer) then `cargo build --release` compiles the binary.
+3. **Runtime stage:** `debian:bookworm-slim` with `ca-certificates`. Binary at `/usr/local/bin/solidrop-api-server`. Exposes port 3000.
 
-**Decision: Rust version pinning — TENTATIVE.** The Dockerfile pins `rust:1.93-slim`. This will need updating as the toolchain evolves. No automated Rust version management is in place.
+Both builder and runtime are pinned to Debian bookworm (`rust:1.93-slim-bookworm` / `debian:bookworm-slim`) to ensure matching glibc versions.
+
+**Decision: cargo-chef for dependency caching — THOUGHT-THROUGH.** The dependency graph (aws-sdk-s3, tokio, axum, rustls, …) is large. Without cargo-chef, every source change triggers a full recompile of all dependencies. With cargo-chef, the dependency layer is cached and only rebuilt when `Cargo.toml` / `Cargo.lock` change.
+
+**Decision: Rust version pinning — TENTATIVE.** The Dockerfile pins `rust:1.93-slim-bookworm`. This will need updating as the toolchain evolves.
 
 ### docker-compose.yml
 
