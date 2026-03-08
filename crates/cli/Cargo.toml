@@ -21,6 +21,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror = "1"
 directories = "5"
+percent-encoding = "2"
 
 [dev-dependencies]
 httpmock = "0.7"

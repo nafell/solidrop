@@ -47,6 +47,6 @@ pub async fn run(file_path: &str, remote_path_override: Option<&str>) -> anyhow:
         .await
         .context("upload to S3 failed")?;
 
-    println!("✓ Uploaded {filename} → {remote_path}");
+    println!("Uploaded {filename} -> {remote_path}");
     Ok(())
 }

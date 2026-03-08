@@ -37,8 +37,20 @@ enum Commands {
         #[arg(long)]
         prefix: Option<String>,
     },
-    /// Sync new files from the cloud
+    /// Sync new files from the transfer/ prefix
     Sync,
+    /// Delete a file from the cloud
+    Delete {
+        /// Remote path of the file to delete
+        remote_path: String,
+    },
+    /// Move (rename) a file in the cloud
+    Move {
+        /// Current remote path
+        from: String,
+        /// New remote path
+        to: String,
+    },
 }
 
 #[tokio::main]
@@ -62,6 +74,12 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Sync => {
             commands::sync::run().await?;
+        }
+        Commands::Delete { remote_path } => {
+            commands::delete::run(&remote_path).await?;
+        }
+        Commands::Move { from, to } => {
+            commands::move_cmd::run(&from, &to).await?;
         }
     }
 

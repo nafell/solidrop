@@ -55,7 +55,7 @@ pub async fn run(remote_path: &str) -> anyhow::Result<()> {
         .with_context(|| format!("failed to write file: {}", dest.display()))?;
 
     println!(
-        "✓ Downloaded {remote_path} → {} ({} bytes)",
+        "Downloaded {remote_path} -> {} ({} bytes)",
         dest.display(),
         plaintext.len()
     );
@@ -69,11 +69,8 @@ mod tests {
     #[test]
     fn correct_hash_passes() {
         let data = b"hello world";
-        // SHA-256 of "hello world"
-        // Use the actual function from the crypto crate
         let actual = solidrop_crypto::hash::sha256_hex(data);
         assert!(verify_content_hash(data, &actual));
-        // Also verify a known-bad hash fails
         assert!(!verify_content_hash(data, "deadbeef"));
     }
 

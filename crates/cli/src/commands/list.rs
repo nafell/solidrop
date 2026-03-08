@@ -35,10 +35,8 @@ pub async fn run(prefix: Option<&str>) -> anyhow::Result<()> {
         .max(4);
 
     println!(
-        "{:<path_width$}  {:>12}  {}",
-        "PATH",
-        "SIZE",
-        "LAST MODIFIED",
+        "{:<path_width$}  {:>12}  LAST MODIFIED",
+        "PATH", "SIZE",
         path_width = path_width,
     );
     println!("{}", "-".repeat(path_width + 2 + 12 + 2 + 24));
@@ -52,6 +50,8 @@ pub async fn run(prefix: Option<&str>) -> anyhow::Result<()> {
             path_width = path_width,
         );
     }
+
+    println!("\n{} file(s)", all_files.len());
 
     Ok(())
 }
