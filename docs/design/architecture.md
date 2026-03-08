@@ -186,27 +186,45 @@ solidrop-api-server    solidrop-cli
 
 The application-layer encryption is the primary protection. The server and S3 never have access to plaintext file data or the encryption key.
 
-### Key Management
+### Key Derivation Hierarchy
 
 ```
 Master password (user's memory / password manager)
   → Argon2id → Master key (256-bit)
-    → Stored in: iPad Keychain / PC OS credential store
-    → Never sent to server or cloud
-    → Per-file keys derived via HKDF (per-file salt stored in file header)
+      → Stored in: iPad Keychain / PC OS credential store
+      → Never sent to server or cloud
+      │
+      ├─ HKDF(info="solidrop-file-encryption", salt=per_file_salt)
+      │    → File key (256-bit)  ← client-only, never leaves device
+      │
+      └─ HKDF(info="solidrop-api-auth")
+           → API token (256-bit) ← stored on VPS as API_KEY env var
 ```
 
 **Risk: Key loss = data loss.** There is no recovery mechanism by design. This is explicitly accepted (README §9.4, RISK-1).
+
+### E2EE Security Properties
+
+The HKDF derivation guarantees that the API server cannot decrypt files even if it is compromised:
+
+| Party | Knows | Can decrypt files? |
+|---|---|---|
+| Client | master_key, api_token, file_key | Yes |
+| API server | api_token only | No — HKDF is one-way; api_token → master_key is computationally infeasible |
+| S3 | Ciphertext only | No |
+| Attacker (server compromised) | api_token only | No — cannot derive master_key or file_key |
+
+Domain separation via distinct `info` strings ensures api_token and file_key are independent pseudorandom outputs, even though they share the same master_key input.
 
 ### API Authentication
 
 Single Bearer token. Validated on all `/api/v1/*` endpoints.
 
 ```
-Authorization: Bearer <API_KEY>
+Authorization: Bearer <api_token_hex>
 ```
 
-**Decision: Static API key — THOUGHT-THROUGH.** Single-user system. The key is generated once and stored as an environment variable on the VPS. Rotation is manual. More sophisticated auth (OAuth2, JWT) is unnecessary overhead for this use case.
+**Decision: HKDF-derived API token — THOUGHT-THROUGH.** The API token is derived from the master key using HKDF with a distinct info string (`"solidrop-api-auth"`). This provides two properties: (1) a single passphrase unlocks both file decryption and API access; (2) the server holding the API token gains no ability to decrypt files (HKDF one-way property). See ADR-003 for full rationale. Resolves TBD-3.
 
 ### VPS Security
 
@@ -248,6 +266,7 @@ File naming: `<original-name>.enc` (e.g., `illustration-01.clip.enc`).
 | Local DB (iPad) | SQLite | Standard embedded DB for mobile cache state | THOUGHT-THROUGH |
 | Encryption algorithm | AES-256-GCM | Industry standard AEAD; user requirement for self-only decryption | THOUGHT-THROUGH |
 | KDF | Argon2id + HKDF | Argon2id for password→key; HKDF for per-file derivation | THOUGHT-THROUGH |
+| API authentication | HKDF-derived Bearer token | Single passphrase unlocks auth + crypto; HKDF one-way prevents server from decrypting files | THOUGHT-THROUGH |
 | CLI HTTP client | reqwest (rustls) | Widely used, async, avoids OpenSSL dependency | TENTATIVE |
 | CLI config location | `directories` crate | Platform-standard config paths | TENTATIVE |
 | Dockerfile base | rust:1.93-slim | Current stable toolchain | TENTATIVE |
@@ -273,6 +292,12 @@ These are explicitly deferred decisions from README §18.1 that affect the archi
 | TBD-2 | VPS domain / TLS method | API server deployment blocked until decided |
 | TBD-5 | Argon2id parameters | Performance on iPad; currently using defaults |
 | TBD-8 | Flutter encryption: Dart or Rust FFI | Determines whether `solidrop-crypto` is shared with mobile or reimplemented |
+
+**Resolved TBDs:**
+
+| ID | Decision | Resolved in |
+|---|---|---|
+| TBD-3 | API key = HKDF(master_key, info="solidrop-api-auth"). CLI derives and prints on first setup; user sets as `API_KEY` env var on VPS. | ADR-003 |
 
 ## Cross-References
 
