@@ -110,11 +110,13 @@ This required splitting `router()` into `health_router()` + `api_router()`.
 ### 6. CLI — API Client (`src/api.rs`)
 
 New `SolidropApi` struct wrapping `reqwest::Client`. Methods:
-- `presign_upload(path, content_hash, size_bytes)` → presigned PUT URL
-- `presign_download(path)` → presigned GET URL
-- `list_files(prefix)` → `FilesResponse`
-- `put_object(url, data)` → upload bytes to presigned URL
+- `presign_upload(path, content_hash, size_bytes)` → `PresignUploadResponse { url }`
+- `presign_download(path)` → `PresignDownloadResponse { url, content_hash }`
+- `list_files(prefix, continuation_token)` → `FilesResponse`
+- `put_object(url, data, content_hash)` → upload bytes to presigned URL
 - `get_object(url)` → download bytes from presigned URL
+
+> **Updated (03 report):** Signatures above reflect changes made in the code review fixes pass. Original signatures omitted `continuation_token` from `list_files`, returned a single `PresignResponse`, and `put_object` did not accept a hash.
 
 ### 7. CLI — Master Key Loading (`src/key.rs`)
 
@@ -268,6 +270,13 @@ E2E (CLI):
 | Keychain integration for master key | Phase 1 (before production) |
 | Local SQLite state for sync (LRU cache tracking) | Phase 1 |
 | `HeadObject`-based real content_hash in list | Phase 1 (integrity verification) |
+
+> **Updated (03 report):** The following items from this section were resolved:
+> - Pagination (`continuation_token`) in `list_files`, `list`, `sync` — **done**
+> - `HeadObject` content_hash retrieval in `presign_download` — **done** (download path only; `list` still uses ETag)
+> - End-to-end content_hash integrity chain (upload metadata + download verify) — **done**
+> - `--remote-path` flag for upload to avoid basename collisions — **done**
+> - Auth middleware tests + presign validation tests + CLI httpmock tests — **done**
 
 ### Infrastructure
 

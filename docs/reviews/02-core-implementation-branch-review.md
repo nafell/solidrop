@@ -2,6 +2,9 @@
 
 This review focuses on architectural/implementation contradictions, security concerns, runtime bug risks, error handling quality, and test completeness for the current branch.
 
+> **Status:** All 5 findings resolved in commit `2a8cde4`.
+> See `docs/progress/03-code-review-fixes-report.md` for implementation details.
+
 ## Findings
 
 ### 1) `content_hash` contract is inconsistent across API/CLI and currently unusable for integrity checks (High)
