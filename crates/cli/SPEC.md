@@ -20,8 +20,8 @@ This is the primary PC ↔ cloud interface for Phase 1. A GUI tool is planned fo
 | CLI argument parsing | `src/main.rs` | Complete |
 | Config file loading | `src/config.rs` | Complete |
 | Command dispatch | `src/commands/mod.rs` | Complete |
-| API client | `src/api_client.rs` | Complete |
-| Master key acquisition | `src/master_key.rs` | Complete (env var; keychain planned) |
+| API client | `src/api.rs` | Complete |
+| Master key acquisition | `src/key.rs` | Complete (env var; keychain planned) |
 | Upload command | `src/commands/upload.rs` | Complete |
 | Download command | `src/commands/download.rs` | Complete |
 | List command | `src/commands/list.rs` | Complete |

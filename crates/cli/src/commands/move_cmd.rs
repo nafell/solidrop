@@ -1,9 +1,8 @@
-use anyhow::Result;
+use super::CmdContext;
 
-use crate::api_client::ApiClient;
-
-pub async fn run(api: &ApiClient, from: &str, to: &str) -> Result<()> {
-    api.move_file(from, to).await?;
-    println!("Moved: {} -> {}", from, to);
+pub async fn run(from: &str, to: &str) -> anyhow::Result<()> {
+    let ctx = CmdContext::load()?;
+    ctx.api.move_file(from, to).await?;
+    println!("Moved: {from} -> {to}");
     Ok(())
 }

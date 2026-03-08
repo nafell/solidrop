@@ -96,10 +96,10 @@ iPadでのお絵かき作業の効率化のため、データ基盤（PCとの�
 - **理由:** LAN内P2P実装はiPad側・PC側両方に開発工数がかかり、LAN外のフォールバックも必要。クラウド経由の署名付きURL方式で体感速度は十分実用的。
 - **決定:** Phase 2以降。クラウド経由で遅いと感じてから検討する。
 
-#### 判断5: MVPではDB不要
+#### 判断5: API層にメタデータ永続インデックスを導入
 
-- **理由:** 個人利用でファイルパス→メタデータ程度ならS3のListObjects API + オブジェクトメタデータタグで十分。DynamoDB/Firestoreを別途立てる複雑さが学習コスト・運用コストに見合わない。
-- **決定:** クラウド側DBなし。クライアント側のキャッシュ状態管理はローカルSQLite。
+- **理由:** S3 APIのみで一覧とメタデータを賄うと、レスポンスや整合性運用が複雑化する。個人運用でも、API層で検索・一覧に最適化した永続インデックスを持つほうが保守しやすい。
+- **決定:** VPS上にValkey（AOF）を導入し、API層のメタデータインデックスとして利用。S3は暗号化ファイル本体の保管先として維持。
 
 #### 判断6: 復元フローの重要性
 
@@ -401,7 +401,7 @@ DELETE /api/v1/files/active/2025-06/old-sketch.clip.enc
 
 #### `POST /api/v1/cache/report`
 
-iPadアプリからのキャッシュ状態報告。サーバー側で退避候補を計算して返却する。
+iPadアプリからのキャッシュ状態報告。退避候補（LRU）はクライアントローカルで計算し、サーバーはS3整合性チェックに必要な情報のみ返却する。
 
 ```json
 // Request
@@ -418,10 +418,10 @@ iPadアプリからのキャッシュ状態報告。サーバー側で退避候�
 
 // Response 200
 {
-  "evict_candidates": [
+  "verified_candidates": [
     {
       "path": "active/2025-06/old-sketch.clip.enc",
-      "reason": "lru",
+      "verification": "s3_hash_match",
       "last_used": "2025-06-01T00:00:00Z"
     }
   ]
@@ -610,7 +610,7 @@ CREATE INDEX idx_location ON file_cache(location);
 ```toml
 [server]
 endpoint = "https://your-vps-domain.com/api/v1"
-api_key_env = "SOLIDROP_API_KEY"  # 環境変数名
+api_key_env = "SOLIDROP_API_KEY"  # クライアント側Bearerトークンの環境変数名
 
 [storage]
 download_dir = "~/Art/synced"
@@ -659,6 +659,12 @@ keychain_account = "master-key"
 ### 12.4 承認制を選択した理由
 
 完全自動退避は「今日描こうと思っていたファイルが消えていた」リスクがあり、お絵かきUXを最優先とする本プロジェクトの目的に反する。MVPでは承認制とし、使用感をもとにPhase 2で自動化を検討する。
+
+### 12.5 LRUとLFUの責務分離
+
+- **LRU**: ローカル原本ファイル（.clip等）の退避候補選定に使用。計算主体はクライアント（SQLite上の`last_used`）。
+- **LFU**: サムネイル画像・デコード済み一時データの表示用キャッシュに使用。これもクライアントローカルで完結。
+- サーバーはLRU/LFUの順位計算を行わない。必要時にS3整合性確認のみ担う。
 
 ---
 
@@ -769,6 +775,7 @@ XServer VPSは既存契約のため追加コスト0。将来Fargateに移行す�
 | IaC | Terraform | AWSリソース管理 |
 | APIサーバーデプロイ | Docker on XServer VPS | 既存契約活用、追加コスト0 |
 | ローカルDB | SQLite | クライアント側キャッシュ管理 |
+| APIメタデータインデックス | Valkey (Redis互換, AOF) | 一覧・検索を高速化しつつVPS運用に適合 |
 
 ### 15.2 Rustクレート（サーバー/CLI）
 
@@ -927,7 +934,7 @@ members = [
 |---|---|---|---|
 | TBD-1 | S3バケット名の正式名称 | **決定: `nafell-solidrop-storage`** | 本番用バケット名 |
 | TBD-2 | VPSドメイン名 / TLS証明書の取得方法 | **決定: Caddy（自動TLS）、ドメイン既存** | Caddyの自動HTTPS機能を利用 |
-| TBD-3 | APIキーの生成・管理方法 | **決定: `openssl rand -hex 32`、環境変数管理** | `API_KEY`環境変数で管理 |
+| TBD-3 | APIキーの生成・管理方法 | **決定済み** | HKDF(master_key, info="solidrop-api-auth") で派生。サーバーには `SOLIDROP_API_KEY_VERIFIER_SHA256=SHA256(api_token)` を設定し、クライアントは `Authorization: Bearer <api_token>` で送信する。詳細は ADR-003 参照。 |
 | TBD-4 | IAMアクセスキーのローテーション頻度 | 未決定 | 90日ごと程度を推奨 |
 | TBD-5 | Argon2idのパラメータ（メモリコスト、反復回数） | **暫定: ライブラリデフォルト、Flutter時に実測調整** | `argon2` crateのデフォルト値を使用。iPad実機での性能測定後に最適化 |
 | TBD-6 | BGTaskSchedulerの具体的なタスク識別子・実装方式 | 未決定 | Flutter側プラグイン選定にも依存 |

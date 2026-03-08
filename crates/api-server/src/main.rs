@@ -1,12 +1,11 @@
 use std::net::SocketAddr;
 
-use axum::Router;
+use axum::{middleware, Router};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
 mod error;
-mod middleware;
 mod routes;
 mod s3_client;
 
@@ -22,14 +21,27 @@ async fn main() {
 
     let config = config::AppConfig::from_env();
     tracing::debug!(bucket = %config.s3_bucket, has_api_key = !config.api_key.is_empty(), "loaded app config");
+
     let s3 = s3_client::create_s3_client(&config).await;
+    let s3_presign = s3_client::create_presigning_s3_client(&config).await;
+
     let state = routes::AppState {
         s3,
+        s3_presign,
         config: config.clone(),
     };
 
+    // API routes are protected by Bearer token auth.
+    // The middleware is applied here (not in routes/mod.rs) because
+    // `from_fn_with_state` requires an owned state instance.
+    let api = routes::api_router().route_layer(middleware::from_fn_with_state(
+        state.clone(),
+        routes::auth_middleware,
+    ));
+
     let app = Router::new()
-        .merge(routes::router_with_auth(state.clone()))
+        .merge(routes::health_router())
+        .merge(api)
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 

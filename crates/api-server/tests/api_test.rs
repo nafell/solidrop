@@ -1,11 +1,11 @@
 use axum::http::{HeaderName, HeaderValue};
-use axum::Router;
+use axum::{middleware::from_fn_with_state, Router};
 use axum_test::TestServer;
 use serde_json::json;
 
 use solidrop_api_server::config::AppConfig;
-use solidrop_api_server::routes::{router_with_auth, AppState};
-use solidrop_api_server::s3_client::create_s3_client;
+use solidrop_api_server::routes::{api_router, auth_middleware, health_router, AppState};
+use solidrop_api_server::s3_client::{create_presigning_s3_client, create_s3_client};
 
 const TEST_API_KEY: &str = "test-secret-key";
 
@@ -31,12 +31,19 @@ fn test_config() -> AppConfig {
 async fn test_app() -> Router {
     let config = test_config();
     let s3 = create_s3_client(&config).await;
+    let s3_presign = create_presigning_s3_client(&config).await;
     let state = AppState {
         s3,
+        s3_presign,
         config: config.clone(),
     };
+
+    let api =
+        api_router().route_layer(from_fn_with_state(state.clone(), auth_middleware));
+
     Router::new()
-        .merge(router_with_auth(state.clone()))
+        .merge(health_router())
+        .merge(api)
         .with_state(state)
 }
 
@@ -260,7 +267,7 @@ async fn test_presign_upload_returns_url() {
 
     resp.assert_status_ok();
     let body: serde_json::Value = resp.json();
-    let url = body["upload_url"].as_str().unwrap();
+    let url = body["url"].as_str().unwrap();
     assert!(
         url.contains("test/upload.enc"),
         "URL should contain the key"
@@ -286,7 +293,7 @@ async fn test_presign_download_returns_url() {
 
     resp.assert_status_ok();
     let body: serde_json::Value = resp.json();
-    let url = body["download_url"].as_str().unwrap();
+    let url = body["url"].as_str().unwrap();
     assert!(url.contains("test/download.enc"));
     assert!(url.contains("X-Amz-"));
 }
@@ -328,7 +335,7 @@ async fn test_upload_then_list() {
         }))
         .await;
     resp.assert_status_ok();
-    let upload_url = resp.json::<serde_json::Value>()["upload_url"]
+    let upload_url = resp.json::<serde_json::Value>()["url"]
         .as_str()
         .unwrap()
         .to_string();
@@ -338,7 +345,6 @@ async fn test_upload_then_list() {
     let upload_resp = client
         .put(&upload_url)
         .header("x-amz-meta-content-hash", "testhash123")
-        .header("x-amz-meta-original-size", "11")
         .body("hello world")
         .send()
         .await
@@ -362,7 +368,7 @@ async fn test_upload_then_list() {
     assert!(
         files
             .iter()
-            .any(|f| f["key"] == "integration-test/list-test.enc"),
+            .any(|f| f["path"] == "integration-test/list-test.enc"),
         "uploaded file should appear in listing"
     );
 
@@ -407,7 +413,7 @@ async fn test_move_file() {
         }))
         .await;
     resp.assert_status_ok();
-    let upload_url = resp.json::<serde_json::Value>()["upload_url"]
+    let upload_url = resp.json::<serde_json::Value>()["url"]
         .as_str()
         .unwrap()
         .to_string();
@@ -416,7 +422,6 @@ async fn test_move_file() {
     client
         .put(&upload_url)
         .header("x-amz-meta-content-hash", "movehash")
-        .header("x-amz-meta-original-size", "9")
         .body("move test")
         .send()
         .await
@@ -470,7 +475,7 @@ async fn test_move_encoded_key() {
         }))
         .await;
     resp.assert_status_ok();
-    let upload_url = resp.json::<serde_json::Value>()["upload_url"]
+    let upload_url = resp.json::<serde_json::Value>()["url"]
         .as_str()
         .unwrap()
         .to_string();
@@ -479,7 +484,6 @@ async fn test_move_encoded_key() {
     client
         .put(&upload_url)
         .header("x-amz-meta-content-hash", "spacehash")
-        .header("x-amz-meta-original-size", "4")
         .body("test")
         .send()
         .await
@@ -512,10 +516,6 @@ async fn test_move_encoded_key() {
 async fn test_delete_s3_error_not_masked() {
     // This test verifies that S3 errors other than 404 are not mapped to NotFound.
     // We create a server with an invalid S3 endpoint to simulate connection failure.
-    use solidrop_api_server::config::AppConfig;
-    use solidrop_api_server::routes::{router_with_auth, AppState};
-    use solidrop_api_server::s3_client::create_s3_client;
-
     let config = AppConfig {
         port: 3000,
         s3_bucket: "solidrop-dev".into(),
@@ -527,12 +527,19 @@ async fn test_delete_s3_error_not_masked() {
         s3_public_endpoint_url: Some("http://localhost:1".into()),
     };
     let s3 = create_s3_client(&config).await;
+    let s3_presign = create_presigning_s3_client(&config).await;
     let state = AppState {
         s3,
+        s3_presign,
         config: config.clone(),
     };
+
+    let api =
+        api_router().route_layer(from_fn_with_state(state.clone(), auth_middleware));
+
     let app = Router::new()
-        .merge(router_with_auth(state.clone()))
+        .merge(health_router())
+        .merge(api)
         .with_state(state);
 
     let server = TestServer::new(app).unwrap();

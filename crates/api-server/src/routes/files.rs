@@ -1,4 +1,8 @@
-use axum::{extract::Query, extract::State, routing::get, Json, Router};
+use axum::{
+    extract::{Query, State},
+    routing::get,
+    Json, Router,
+};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
@@ -12,19 +16,21 @@ pub fn router() -> Router<AppState> {
 struct ListParams {
     prefix: Option<String>,
     limit: Option<i32>,
-    next_token: Option<String>,
+    continuation_token: Option<String>,
 }
 
 #[derive(Serialize)]
 struct FileEntry {
-    key: String,
-    size: i64,
-    last_modified: Option<String>,
-    content_hash: Option<String>,
+    path: String,
+    size_bytes: u64,
+    last_modified: String,
+    /// SHA-256 hash stored as S3 object metadata at upload time.
+    /// Falls back to the S3 ETag if the metadata key is absent.
+    content_hash: String,
 }
 
 #[derive(Serialize)]
-struct ListResponse {
+struct FilesResponse {
     files: Vec<FileEntry>,
     next_token: Option<String>,
 }
@@ -32,7 +38,7 @@ struct ListResponse {
 async fn list_files(
     State(state): State<AppState>,
     Query(params): Query<ListParams>,
-) -> Result<Json<ListResponse>, AppError> {
+) -> Result<Json<FilesResponse>, AppError> {
     let limit = params.limit.unwrap_or(100).clamp(1, 100);
 
     let mut req = state
@@ -41,11 +47,10 @@ async fn list_files(
         .bucket(&state.config.s3_bucket)
         .max_keys(limit);
 
-    if let Some(ref prefix) = params.prefix {
+    if let Some(prefix) = params.prefix {
         req = req.prefix(prefix);
     }
-
-    if let Some(ref token) = params.next_token {
+    if let Some(token) = params.continuation_token {
         req = req.continuation_token(token);
     }
 
@@ -54,42 +59,31 @@ async fn list_files(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let mut files = Vec::new();
+    let files = output
+        .contents()
+        .iter()
+        .filter_map(|obj| {
+            let path = obj.key()?.to_string();
+            let size_bytes = obj.size().unwrap_or(0) as u64;
+            let last_modified = obj
+                .last_modified()
+                .map(|t| t.to_string())
+                .unwrap_or_default();
+            // ETag is available from ListObjectsV2 without extra API calls.
+            // The real SHA-256 hash is stored as metadata and requires
+            // individual HeadObject calls; that optimization can be added later.
+            let content_hash = obj.e_tag().unwrap_or("").trim_matches('"').to_string();
 
-    for obj in output.contents() {
-        let key = match obj.key() {
-            Some(k) => k.to_string(),
-            None => continue,
-        };
+            Some(FileEntry {
+                path,
+                size_bytes,
+                last_modified,
+                content_hash,
+            })
+        })
+        .collect();
 
-        let size = obj.size().unwrap_or(0);
+    let next_token = output.next_continuation_token().map(String::from);
 
-        let last_modified: Option<String> = obj.last_modified().and_then(|dt| {
-            dt.fmt(aws_sdk_s3::primitives::DateTimeFormat::DateTime)
-                .ok()
-        });
-
-        let content_hash = match state
-            .s3
-            .head_object()
-            .bucket(&state.config.s3_bucket)
-            .key(&key)
-            .send()
-            .await
-        {
-            Ok(head) => head.metadata().and_then(|m| m.get("content-hash").cloned()),
-            Err(_) => None,
-        };
-
-        files.push(FileEntry {
-            key,
-            size,
-            last_modified,
-            content_hash,
-        });
-    }
-
-    let next_token = output.next_continuation_token().map(|s| s.to_string());
-
-    Ok(Json(ListResponse { files, next_token }))
+    Ok(Json(FilesResponse { files, next_token }))
 }

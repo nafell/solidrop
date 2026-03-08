@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
 
-mod api_client;
+mod api;
 mod commands;
 mod config;
-mod master_key;
+mod key;
 
 #[derive(Parser)]
 #[command(
@@ -22,6 +22,9 @@ enum Commands {
     Upload {
         /// Path to the file to upload
         file_path: String,
+        /// Override the remote S3 key (default: <filename>.enc)
+        #[arg(long)]
+        remote_path: Option<String>,
     },
     /// Download a file from the cloud
     Download {
@@ -59,9 +62,11 @@ async fn main() -> anyhow::Result<()> {
     let api = api_client::ApiClient::from_config(&config)?;
 
     match cli.command {
-        Commands::Upload { file_path } => {
-            let key = master_key::acquire_master_key(&config.crypto)?;
-            commands::upload::run(&api, &key, &file_path).await?;
+        Commands::Upload {
+            file_path,
+            remote_path,
+        } => {
+            commands::upload::run(&file_path, remote_path.as_deref()).await?;
         }
         Commands::Download { remote_path } => {
             let key = master_key::acquire_master_key(&config.crypto)?;
@@ -79,6 +84,12 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Move { from, to } => {
             commands::move_cmd::run(&api, &from, &to).await?;
+        }
+        Commands::Delete { remote_path } => {
+            commands::delete::run(&remote_path).await?;
+        }
+        Commands::Move { from, to } => {
+            commands::move_cmd::run(&from, &to).await?;
         }
     }
 
