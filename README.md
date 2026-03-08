@@ -928,7 +928,7 @@ members = [
 |---|---|---|---|
 | TBD-1 | S3バケット名の正式名称 | 未決定 | `{project-name}-art-storage` のプレースホルダー |
 | TBD-2 | VPSドメイン名 / TLS証明書の取得方法 | 未決定 | Let's Encrypt or Caddy |
-| TBD-3 | APIキーの生成・管理方法 | 未決定 | 初回セットアップ時に生成、環境変数 or ファイル管理 |
+| TBD-3 | APIキーの生成・管理方法 | **決定済み** | HKDF(master_key, info="solidrop-api-auth") で派生。CLIが初回セットアップ時に表示し、VPSの環境変数 `API_KEY` に設定する。詳細は ADR-003 参照。 |
 | TBD-4 | IAMアクセスキーのローテーション頻度 | 未決定 | 90日ごと程度を推奨 |
 | TBD-5 | Argon2idのパラメータ（メモリコスト、反復回数） | 未決定 | OWASP推奨値を基準に、クライアント端末の性能で調整 |
 | TBD-6 | BGTaskSchedulerの具体的なタスク識別子・実装方式 | 未決定 | Flutter側プラグイン選定にも依存 |
