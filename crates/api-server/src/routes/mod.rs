@@ -59,3 +59,75 @@ pub async fn auth_middleware(
 
     Ok(next.run(request).await)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aws_config::SdkConfig;
+    use axum::{middleware::from_fn_with_state, routing::get, Router};
+    use axum_test::TestServer;
+
+    fn make_test_state(api_key: &str) -> AppState {
+        use crate::config::AppConfig;
+        let config = AppConfig {
+            port: 3000,
+            s3_bucket: "test".into(),
+            api_key: api_key.to_string(),
+            aws_region: "us-east-1".into(),
+            s3_endpoint_url: None,
+            s3_force_path_style: false,
+            s3_public_endpoint_url: None,
+        };
+        let sdk_config = SdkConfig::builder()
+            .behavior_version(aws_config::BehaviorVersion::latest())
+            .build();
+        let s3 = aws_sdk_s3::Client::new(&sdk_config);
+        let s3_presign = aws_sdk_s3::Client::new(&sdk_config);
+        AppState {
+            s3,
+            s3_presign,
+            config,
+        }
+    }
+
+    fn make_auth_router(api_key: &str) -> Router {
+        let state = make_test_state(api_key);
+        Router::new()
+            .route("/test", get(|| async { "ok" }))
+            .route_layer(from_fn_with_state(state.clone(), auth_middleware))
+            .with_state(state)
+    }
+
+    #[tokio::test]
+    async fn no_auth_header_returns_401() {
+        let server = TestServer::new(make_auth_router("secret")).unwrap();
+        let resp = server.get("/test").await;
+        assert_eq!(resp.status_code(), 401);
+    }
+
+    #[tokio::test]
+    async fn wrong_token_returns_401() {
+        let server = TestServer::new(make_auth_router("secret")).unwrap();
+        let resp = server
+            .get("/test")
+            .add_header(
+                axum::http::header::AUTHORIZATION,
+                axum::http::HeaderValue::from_static("Bearer wrong"),
+            )
+            .await;
+        assert_eq!(resp.status_code(), 401);
+    }
+
+    #[tokio::test]
+    async fn correct_token_passes_through() {
+        let server = TestServer::new(make_auth_router("secret")).unwrap();
+        let resp = server
+            .get("/test")
+            .add_header(
+                axum::http::header::AUTHORIZATION,
+                axum::http::HeaderValue::from_static("Bearer secret"),
+            )
+            .await;
+        assert_eq!(resp.status_code(), 200);
+    }
+}

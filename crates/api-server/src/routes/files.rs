@@ -66,11 +66,7 @@ async fn list_files(
             // ETag is available from ListObjectsV2 without extra API calls.
             // The real SHA-256 hash is stored as metadata and requires
             // individual HeadObject calls; that optimization can be added later.
-            let content_hash = obj
-                .e_tag()
-                .unwrap_or("")
-                .trim_matches('"')
-                .to_string();
+            let content_hash = obj.e_tag().unwrap_or("").trim_matches('"').to_string();
 
             Some(FileEntry {
                 path,

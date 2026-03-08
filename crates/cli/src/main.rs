@@ -22,6 +22,9 @@ enum Commands {
     Upload {
         /// Path to the file to upload
         file_path: String,
+        /// Override the remote S3 key (default: <filename>.enc)
+        #[arg(long)]
+        remote_path: Option<String>,
     },
     /// Download a file from the cloud
     Download {
@@ -45,8 +48,11 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Upload { file_path } => {
-            commands::upload::run(&file_path).await?;
+        Commands::Upload {
+            file_path,
+            remote_path,
+        } => {
+            commands::upload::run(&file_path, remote_path.as_deref()).await?;
         }
         Commands::Download { remote_path } => {
             commands::download::run(&remote_path).await?;

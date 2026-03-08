@@ -10,24 +10,38 @@ pub async fn run() -> anyhow::Result<()> {
     let ctx = CmdContext::load()?;
 
     println!("Fetching remote file list...");
-    let resp = ctx
-        .api
-        .list_files(None)
-        .await
-        .context("failed to list remote files")?;
 
-    if resp.files.is_empty() {
+    // Collect all pages before iterating
+    let mut all_files = Vec::new();
+    let mut next_token: Option<String> = None;
+    loop {
+        let resp = ctx
+            .api
+            .list_files(None, next_token.as_deref())
+            .await
+            .context("failed to list remote files")?;
+        all_files.extend(resp.files);
+        next_token = resp.next_token;
+        if next_token.is_none() {
+            break;
+        }
+    }
+
+    if all_files.is_empty() {
         println!("No remote files found.");
         return Ok(());
     }
 
-    println!("Found {} remote file(s). Checking local state...", resp.files.len());
+    println!(
+        "Found {} remote file(s). Checking local state...",
+        all_files.len()
+    );
 
     let download_dir = &ctx.config.storage.download_dir;
     let mut downloaded = 0usize;
     let mut skipped = 0usize;
 
-    for file in &resp.files {
+    for file in &all_files {
         let local_filename = std::path::Path::new(&file.path)
             .file_name()
             .and_then(|n| n.to_str())
@@ -43,7 +57,7 @@ pub async fn run() -> anyhow::Result<()> {
             continue;
         }
 
-        // Re-use the download command's logic
+        // Re-use the download command's logic (includes integrity verification)
         download::run(&file.path).await?;
         downloaded += 1;
     }

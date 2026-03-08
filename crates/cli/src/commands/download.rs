@@ -1,9 +1,14 @@
-use anyhow::{Context, Result};
+use anyhow::Context;
 use std::path::Path;
 
 use solidrop_crypto::decrypt::decrypt;
 
 use super::CmdContext;
+
+/// Returns true if the SHA-256 hex digest of `plaintext` matches `expected`.
+pub fn verify_content_hash(plaintext: &[u8], expected: &str) -> bool {
+    solidrop_crypto::hash::sha256_hex(plaintext) == expected
+}
 
 pub async fn run(remote_path: &str) -> anyhow::Result<()> {
     let ctx = CmdContext::load()?;
@@ -25,6 +30,14 @@ pub async fn run(remote_path: &str) -> anyhow::Result<()> {
     println!("Decrypting ({} bytes)...", ciphertext.len());
     let plaintext = decrypt(&ctx.master_key, &ciphertext).context("decryption failed")?;
 
+    // Verify integrity against the hash stored in S3 object metadata
+    if let Some(expected_hash) = &presign.content_hash {
+        if !verify_content_hash(&plaintext, expected_hash) {
+            anyhow::bail!("integrity check failed: content_hash mismatch for {remote_path}");
+        }
+        tracing::debug!("integrity check passed");
+    }
+
     // Derive local filename: strip trailing ".enc" if present
     let local_filename = Path::new(remote_path)
         .file_name()
@@ -41,6 +54,35 @@ pub async fn run(remote_path: &str) -> anyhow::Result<()> {
     std::fs::write(&dest, &plaintext)
         .with_context(|| format!("failed to write file: {}", dest.display()))?;
 
-    println!("✓ Downloaded {remote_path} → {} ({} bytes)", dest.display(), plaintext.len());
+    println!(
+        "✓ Downloaded {remote_path} → {} ({} bytes)",
+        dest.display(),
+        plaintext.len()
+    );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::verify_content_hash;
+
+    #[test]
+    fn correct_hash_passes() {
+        let data = b"hello world";
+        // SHA-256 of "hello world"
+        // Use the actual function from the crypto crate
+        let actual = solidrop_crypto::hash::sha256_hex(data);
+        assert!(verify_content_hash(data, &actual));
+        // Also verify a known-bad hash fails
+        assert!(!verify_content_hash(data, "deadbeef"));
+    }
+
+    #[test]
+    fn wrong_hash_fails() {
+        let data = b"some content";
+        assert!(!verify_content_hash(
+            data,
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        ));
+    }
 }

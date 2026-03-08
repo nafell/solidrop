@@ -5,19 +5,34 @@ use super::CmdContext;
 pub async fn run(prefix: Option<&str>) -> anyhow::Result<()> {
     let ctx = CmdContext::load()?;
 
-    let resp = ctx
-        .api
-        .list_files(prefix)
-        .await
-        .context("failed to list files")?;
+    // Collect all pages before displaying
+    let mut all_files = Vec::new();
+    let mut next_token: Option<String> = None;
+    loop {
+        let resp = ctx
+            .api
+            .list_files(prefix, next_token.as_deref())
+            .await
+            .context("failed to list files")?;
+        all_files.extend(resp.files);
+        next_token = resp.next_token;
+        if next_token.is_none() {
+            break;
+        }
+    }
 
-    if resp.files.is_empty() {
+    if all_files.is_empty() {
         println!("No files found.");
         return Ok(());
     }
 
     // Column widths
-    let path_width = resp.files.iter().map(|f| f.path.len()).max().unwrap_or(4).max(4);
+    let path_width = all_files
+        .iter()
+        .map(|f| f.path.len())
+        .max()
+        .unwrap_or(4)
+        .max(4);
 
     println!(
         "{:<path_width$}  {:>12}  {}",
@@ -28,7 +43,7 @@ pub async fn run(prefix: Option<&str>) -> anyhow::Result<()> {
     );
     println!("{}", "-".repeat(path_width + 2 + 12 + 2 + 24));
 
-    for file in &resp.files {
+    for file in &all_files {
         println!(
             "{:<path_width$}  {:>12}  {}",
             file.path,
@@ -36,10 +51,6 @@ pub async fn run(prefix: Option<&str>) -> anyhow::Result<()> {
             file.last_modified,
             path_width = path_width,
         );
-    }
-
-    if resp.next_token.is_some() {
-        println!("(more results available; pagination not yet supported in CLI)");
     }
 
     Ok(())
