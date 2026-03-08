@@ -8,9 +8,12 @@ use axum::{
 
 use crate::{config::AppConfig, error::AppError};
 
-mod files;
+pub mod cache;
+pub mod delete;
+pub mod file_move;
+pub mod files;
 mod health;
-mod presign;
+pub mod presign;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -35,6 +38,9 @@ pub fn api_router() -> Router<AppState> {
     Router::new()
         .merge(presign::router())
         .merge(files::router())
+        .merge(delete::router())
+        .merge(file_move::router())
+        .merge(cache::router())
 }
 
 /// Bearer token authentication middleware.

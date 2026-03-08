@@ -13,4 +13,5 @@ variable "project_name" {
 variable "bucket_name" {
   description = "S3 bucket name for art storage"
   type        = string
+  default     = "nafell-solidrop-storage"
 }

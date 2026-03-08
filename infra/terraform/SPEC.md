@@ -20,9 +20,9 @@ Terraform configurations for provisioning AWS resources. The VPS itself is not m
 |---|---|---|---|---|
 | `aws_region` | string | `ap-northeast-1` | No | Tokyo region — THOUGHT-THROUGH (README §8.1) |
 | `project_name` | string | `solidrop` | No | Used for IAM user naming |
-| `bucket_name` | string | — | **Yes** | No default — README TBD-1 |
+| `bucket_name` | string | `nafell-solidrop-storage` | No | Production bucket name (README TBD-1: decided) |
 
-**Decision: bucket_name has no default — deliberate.** The README lists the actual bucket name as TBD-1. The variable forces an explicit choice at `terraform plan/apply` time.
+**Decision: bucket_name default set to `nafell-solidrop-storage`.** TBD-1 has been decided. The default matches the production bucket name. Can still be overridden via `-var` or `.tfvars` for other environments.
 
 ## S3 Bucket Configuration
 
@@ -84,8 +84,8 @@ Terraform configurations for provisioning AWS resources. The VPS itself is not m
 | Resource | Reason |
 |---|---|
 | XServer VPS | Existing contract, manually provisioned |
-| TLS certificates | Let's Encrypt / Caddy on VPS (TBD-2) |
-| DNS | Domain configuration (TBD-2) |
+| TLS certificates | Caddy with automatic TLS on VPS (TBD-2: decided) |
+| DNS | Domain configuration (existing domain) |
 | Docker images | Built and deployed manually or via CI/CD (not yet set up) |
 
 ## Usage
@@ -96,11 +96,11 @@ cd infra/terraform/
 # First time
 terraform init
 
-# Preview changes
-terraform plan -var="bucket_name=my-solidrop-bucket"
+# Preview changes (uses default bucket_name=nafell-solidrop-storage)
+terraform plan
 
 # Apply
-terraform apply -var="bucket_name=my-solidrop-bucket"
+terraform apply
 ```
 
 A `.tfvars` file is recommended for repeated use but is gitignored for security.

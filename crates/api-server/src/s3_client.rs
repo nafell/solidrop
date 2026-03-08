@@ -44,6 +44,6 @@ pub async fn create_presigning_s3_client(config: &AppConfig) -> Client {
 
 #[cfg(test)]
 mod tests {
-    // rewrite_presigned_url_for_public_access was removed: the two-client
-    // approach makes URL rewriting unnecessary.
+    // The two-client approach makes URL rewriting unnecessary.
+    // Presigned URLs are generated with the correct public endpoint from the start.
 }

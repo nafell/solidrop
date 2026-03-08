@@ -23,11 +23,13 @@ The server is a thin orchestration layer. It holds IAM credentials and translate
 | Route aggregation | `src/routes/mod.rs` | Complete |
 | Health check | `src/routes/health.rs` | Complete |
 | Auth middleware | `src/routes/mod.rs` | Complete (Bearer token, `/api/v1/*` only) |
-| Presigned URLs | `src/routes/presign.rs` | Complete |
+| Presigned URLs | `src/routes/presign.rs` | Complete (upload + download with two-client presigning) |
 | File listing | `src/routes/files.rs` | Complete (ETag as content_hash; real SHA-256 deferred) |
-| Delete endpoint | — | **Not started** |
-| Move endpoint | — | **Not started** |
-| Cache report | — | **Not started** |
+| Delete endpoint | `src/routes/delete.rs` | Complete (HEAD check + delete) |
+| Move endpoint | `src/routes/file_move.rs` | Complete (copy + delete) |
+| Cache report | `src/routes/cache.rs` | Complete (LRU eviction computation) |
+| Library re-exports | `src/lib.rs` | Complete (enables integration test imports) |
+| Integration tests | `tests/api_test.rs` | Complete (9 non-S3 + 7 S3/MinIO tests) |
 
 ## API Endpoints
 
@@ -35,26 +37,40 @@ Defined in README Section 7.2.
 
 | Method | Path | Purpose | Status |
 |---|---|---|---|
-| `GET` | `/health` | Health check | Complete |
+| `GET` | `/health` | Health check (no auth) | Complete |
 | `POST` | `/api/v1/presign/upload` | Presigned upload URL | Complete |
 | `POST` | `/api/v1/presign/download` | Presigned download URL | Complete |
 | `GET` | `/api/v1/files` | List files from S3 | Complete |
-| `DELETE` | `/api/v1/files/{encoded_path}` | Delete a file | Not started |
-| `POST` | `/api/v1/files/move` | Move file (active ↔ archived) | Not started |
-| `POST` | `/api/v1/cache/report` | iPad cache state report + eviction candidates | Not started |
+| `DELETE` | `/api/v1/files/*path` | Delete a file | Complete |
+| `POST` | `/api/v1/files/move` | Move file (active ↔ archived) | Complete |
+| `POST` | `/api/v1/cache/report` | iPad cache state report + eviction candidates | Complete |
 
 ### Request/Response Structures (defined in code)
 
 **Presign Upload:**
 - Request: `{ path: String, content_hash: String, size_bytes: u64 }`
-- Response: `{ url: String, expires_in: u64 }`
+- Response: `{ upload_url: String }`
+- Sets S3 object metadata: `content-hash`, `original-size`
 
 **Presign Download:**
 - Request: `{ path: String }`
-- Response: `{ url: String, expires_in: u64 }`
+- Response: `{ download_url: String }`
 
 **File Listing:**
-- Response: `{ files: [{ path, size_bytes, last_modified, content_hash }], next_token: Option<String> }`
+- Query params: `prefix`, `limit` (1-100, default 100), `next_token`
+- Response: `{ files: [{ key, size, last_modified, content_hash }], next_token: Option<String> }`
+
+**Delete:**
+- Path param: `*path` (wildcard, captures slashes)
+- Response: `{ deleted: true }`
+
+**Move:**
+- Request: `{ from: String, to: String }`
+- Response: `{ moved: true }`
+
+**Cache Report:**
+- Request: `{ local_files: [{ path, content_hash, size_bytes, last_used }], storage_limit_bytes: u64 }`
+- Response: `{ evict_candidates: [{ path, reason: "lru", last_used }] }`
 
 **Error Response (all endpoints):**
 - `{ error: { code: String, message: String } }`
@@ -97,6 +113,16 @@ Shared across all route handlers via axum's `State` extractor.
 **Decision:** The server issues presigned URLs; file data never passes through the server.
 
 **Rationale (README 2.2 §8):** The VPS is outside AWS. Proxying file data would mean VPS-to-S3 bandwidth costs and increased latency. With presigned URLs, the server only generates a URL (~1KB per request), and clients upload/download directly to/from S3. This makes VPS bandwidth usage negligible.
+
+### Best-Effort Move — THOUGHT-THROUGH
+
+**Decision:** The move endpoint (`POST /api/v1/files/move`) performs a copy-then-delete. If the copy succeeds but the delete fails, the object exists at both source and destination. The server returns 500 and logs the inconsistent state.
+
+**Rationale:** S3 has no atomic rename/move operation. Implementing compensation (e.g., rolling back the copy on delete failure) adds complexity with marginal benefit for a single-user system. The client should treat move as idempotent — retrying a failed move is safe because `copy_object` overwrites the destination and `delete_object` is idempotent.
+
+**Implications for clients:**
+- On success (200): source is deleted, destination exists.
+- On failure (500): destination may or may not exist. Source still exists. Safe to retry.
 
 ### No Database — THOUGHT-THROUGH
 

@@ -4,9 +4,8 @@ use aws_sdk_s3::presigning::PresigningConfig;
 use axum::{extract::State, routing::post, Json, Router};
 use serde::{Deserialize, Serialize};
 
-use crate::error::AppError;
-
 use super::AppState;
+use crate::error::AppError;
 
 const PRESIGN_EXPIRY_SECS: u64 = 3600;
 

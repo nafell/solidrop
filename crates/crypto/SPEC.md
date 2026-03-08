@@ -33,7 +33,7 @@ User password
 
 Each file gets a unique random salt, so each file gets a unique encryption key derived from the same master key. This prevents nonce reuse across files even if the same nonce value were generated twice (astronomically unlikely but defense-in-depth).
 
-**Decision: Argon2id parameters — TENTATIVE.** Currently uses `Argon2::default()`. The README lists this as TBD-5: parameters should be tuned based on iPad hardware performance before production use. The defaults are safe but may be too slow or too fast depending on the device.
+**Decision: Argon2id parameters — TENTATIVE (TBD-5: provisionally decided).** Currently uses `Argon2::default()`, which aligns with OWASP recommendations. This has been accepted as the baseline. Parameters will be re-evaluated during Flutter implementation when iPad real-device performance can be measured. If the default parameters cause unacceptable UX latency on iPad, they will be adjusted at that time.
 
 **Decision: HKDF info string — TENTATIVE.** The info string `b"solidrop-file-encryption"` provides domain separation. This value was not specified in the README and was chosen during scaffolding. It is a reasonable choice and unlikely to need changing, but is not a "designed" decision.
 

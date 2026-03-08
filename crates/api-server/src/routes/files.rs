@@ -5,9 +5,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::error::AppError;
-
 use super::AppState;
+use crate::error::AppError;
 
 pub fn router() -> Router<AppState> {
     Router::new().route("/api/v1/files", get(list_files))
@@ -16,6 +15,7 @@ pub fn router() -> Router<AppState> {
 #[derive(Deserialize)]
 struct ListParams {
     prefix: Option<String>,
+    limit: Option<i32>,
     continuation_token: Option<String>,
 }
 
@@ -39,7 +39,13 @@ async fn list_files(
     State(state): State<AppState>,
     Query(params): Query<ListParams>,
 ) -> Result<Json<FilesResponse>, AppError> {
-    let mut req = state.s3.list_objects_v2().bucket(&state.config.s3_bucket);
+    let limit = params.limit.unwrap_or(100).clamp(1, 100);
+
+    let mut req = state
+        .s3
+        .list_objects_v2()
+        .bucket(&state.config.s3_bucket)
+        .max_keys(limit);
 
     if let Some(prefix) = params.prefix {
         req = req.prefix(prefix);
