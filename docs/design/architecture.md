@@ -30,8 +30,8 @@ Single-user system. No multi-tenancy, no shared access.
 │       on XServer VPS (Docker)       │
 │                                     │
 │  - Issues S3 presigned URLs         │
-│  - Lists files (S3 ListObjects)     │
-│  - Computes eviction candidates     │
+│  - Lists files (Valkey metadata index) │
+│  - Verifies cache safety (S3 hash check) │
 │  - Bearer token auth                │
 │  - Never touches file data          │
 └──────────────┬──────────────────────┘
@@ -90,10 +90,11 @@ solidrop-api-server    solidrop-cli
 
 ### solidrop-api-server
 
-**Role:** HTTP API server. Issues presigned URLs, lists files, manages cache state.
+**Role:** HTTP API server. Issues presigned URLs, lists files, and validates cache-safety checks.
 
 **Key design properties:**
-- Stateless (no database). S3 is the source of truth.
+- Uses Valkey (AOF enabled) as metadata index on VPS.
+- S3 stores encrypted file bodies; Valkey stores query-oriented metadata index.
 - Thin control plane. File data never passes through.
 - Single environment configuration via env vars.
 
@@ -161,13 +162,11 @@ solidrop-api-server    solidrop-cli
 1. Daily background task triggers
 2. App calculates total local storage used
 3. If over threshold (default 60GB):
-   a. App sends POST /api/v1/cache/report
-      { local_files: [{path, content_hash, last_used}], storage_limit_bytes }
-   b. Server sorts by last_used ascending (LRU)
-   c. Server returns evict_candidates
+   a. App queries local SQLite and sorts by last_used ascending (LRU)
+   b. App selects evict candidates locally
 4. App presents candidates to user for approval
 5. On approval:
-   a. Verify file exists in S3 (content_hash match)
+   a. Verify file exists in S3 (content_hash match) via API
    b. Delete local copy
    c. Update SQLite: location = 'cloud_only'
 ```
@@ -198,7 +197,7 @@ Master password (user's memory / password manager)
       │    → File key (256-bit)  ← client-only, never leaves device
       │
       └─ HKDF(info="solidrop-api-auth")
-           → API token (256-bit) ← stored on VPS as API_KEY env var
+           → API token (256-bit) ← client sends as Bearer token; server stores only SHA-256 verifier
 ```
 
 **Risk: Key loss = data loss.** There is no recovery mechanism by design. This is explicitly accepted (README §9.4, RISK-1).
@@ -210,9 +209,9 @@ The HKDF derivation guarantees that the API server cannot decrypt files even if 
 | Party | Knows | Can decrypt files? |
 |---|---|---|
 | Client | master_key, api_token, file_key | Yes |
-| API server | api_token only | No — HKDF is one-way; api_token → master_key is computationally infeasible |
+| API server | api_token verifier only | No — HKDF is one-way; verifier cannot recover api_token/master_key |
 | S3 | Ciphertext only | No |
-| Attacker (server compromised) | api_token only | No — cannot derive master_key or file_key |
+| Attacker (server compromised) | api_token verifier only | No — cannot derive token, master_key, or file_key |
 
 Domain separation via distinct `info` strings ensures api_token and file_key are independent pseudorandom outputs, even though they share the same master_key input.
 
@@ -224,7 +223,7 @@ Single Bearer token. Validated on all `/api/v1/*` endpoints.
 Authorization: Bearer <api_token_hex>
 ```
 
-**Decision: HKDF-derived API token — THOUGHT-THROUGH.** The API token is derived from the master key using HKDF with a distinct info string (`"solidrop-api-auth"`). This provides two properties: (1) a single passphrase unlocks both file decryption and API access; (2) the server holding the API token gains no ability to decrypt files (HKDF one-way property). See ADR-003 for full rationale. Resolves TBD-3.
+**Decision: HKDF-derived API token + verifier storage — THOUGHT-THROUGH.** The API token is derived from the master key using HKDF with a distinct info string (`"solidrop-api-auth"`). Clients send the token as Bearer, while the server stores only `SHA256(api_token)` in `SOLIDROP_API_KEY_VERIFIER_SHA256` and compares in constant time. This preserves E2EE and reduces replay risk from server config leakage. See ADR-003 for full rationale. Resolves TBD-3.
 
 ### VPS Security
 
@@ -264,9 +263,10 @@ File naming: `<original-name>.enc` (e.g., `illustration-01.clip.enc`).
 | Infrastructure as Code | Terraform | Standard for AWS resource management | THOUGHT-THROUGH |
 | API server hosting | XServer VPS (Docker) | Existing contract, zero additional cost | THOUGHT-THROUGH |
 | Local DB (iPad) | SQLite | Standard embedded DB for mobile cache state | THOUGHT-THROUGH |
+| Metadata index (API) | Valkey (Redis-compatible, AOF) | Fast metadata queries with durable VPS-local persistence | THOUGHT-THROUGH |
 | Encryption algorithm | AES-256-GCM | Industry standard AEAD; user requirement for self-only decryption | THOUGHT-THROUGH |
 | KDF | Argon2id + HKDF | Argon2id for password→key; HKDF for per-file derivation | THOUGHT-THROUGH |
-| API authentication | HKDF-derived Bearer token | Single passphrase unlocks auth + crypto; HKDF one-way prevents server from decrypting files | THOUGHT-THROUGH |
+| API authentication | HKDF-derived Bearer token + verifier hash storage | Single passphrase unlocks auth + crypto; server keeps verifier only | THOUGHT-THROUGH |
 | CLI HTTP client | reqwest (rustls) | Widely used, async, avoids OpenSSL dependency | TENTATIVE |
 | CLI config location | `directories` crate | Platform-standard config paths | TENTATIVE |
 | Dockerfile base | rust:1.93-slim | Current stable toolchain | TENTATIVE |
@@ -297,7 +297,7 @@ These are explicitly deferred decisions from README §18.1 that affect the archi
 
 | ID | Decision | Resolved in |
 |---|---|---|
-| TBD-3 | API key = HKDF(master_key, info="solidrop-api-auth"). CLI derives and prints on first setup; user sets as `API_KEY` env var on VPS. | ADR-003 |
+| TBD-3 | API token = HKDF(master_key, info="solidrop-api-auth"). CLI derives token and `SHA256(token)`; user sets `SOLIDROP_API_KEY_VERIFIER_SHA256` on VPS. | ADR-003 |
 
 ## Cross-References
 
