@@ -4,7 +4,6 @@ mod api;
 mod commands;
 mod config;
 mod key;
-mod master_key;
 
 #[derive(Parser)]
 #[command(

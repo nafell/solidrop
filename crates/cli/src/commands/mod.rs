@@ -20,7 +20,7 @@ pub struct CmdContext {
 impl CmdContext {
     pub fn load() -> Result<Self> {
         let config = CliConfig::load().map_err(|e| anyhow::anyhow!("{e}"))?;
-        let master_key = crate::master_key::acquire_master_key(&config.crypto)?;
+        let master_key = crate::key::load_master_key()?;
 
         // Derive the API token from the master key (ADR-003).
         // The server verifies SHA-256(token); the token itself is never stored server-side.

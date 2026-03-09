@@ -8,10 +8,7 @@ use anyhow::{Context, Result};
 /// The output value must be set as `SOLIDROP_API_KEY_VERIFIER_SHA256` on the
 /// API server. See ADR-003 for the full auth design.
 pub fn run() -> Result<()> {
-    let master_key = crate::master_key::acquire_master_key(&crate::config::CryptoConfig {
-        keychain_service: String::new(),
-        keychain_account: String::new(),
-    })?;
+    let master_key = crate::key::load_master_key()?;
 
     let api_token = solidrop_crypto::key_derivation::derive_api_token(&master_key)
         .context("failed to derive API token from master key")?;
