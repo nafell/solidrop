@@ -1,0 +1,12 @@
+# solidrop-staging用のCaddyfile追記内容
+# 既存Caddyfileのワイルドカードブロク ( *.is.lalafell.fun ) より前に追加する
+#
+# 適用方法:
+#   1. ホスト上のCaddyfile（コンテナにマウントされているパス）を編集
+#   2. docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+#
+# productionを追加する際は solidrop.is.lalafell.fun → localhost:3002 で同様に追加
+
+solidrop-staging.is.lalafell.fun {
+    reverse_proxy http://localhost:3001
+}

@@ -1,0 +1,26 @@
+[Unit]
+Description=Solidrop API Server (staging)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Restart=always
+RestartSec=5s
+EnvironmentFile=/etc/solidrop/staging.env
+ExecStartPre=-/usr/bin/docker stop solidrop-api-staging
+ExecStartPre=-/usr/bin/docker rm solidrop-api-staging
+ExecStart=/usr/bin/docker run \
+    --name solidrop-api-staging \
+    --rm \
+    -p 127.0.0.1:3001:3000 \
+    -e S3_BUCKET=nafell-solidrop-staging \
+    -e API_KEY=${API_KEY} \
+    -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+    -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+    -e AWS_REGION=ap-northeast-1 \
+    -e PORT=3000 \
+    solidrop-api-server:staging
+ExecStop=/usr/bin/docker stop solidrop-api-staging
+
+[Install]
+WantedBy=multi-user.target

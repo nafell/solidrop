@@ -77,10 +77,3 @@ cargo run -p solidrop-cli -- --help
 - Keep modules focused — one responsibility per file
 - Write tests in `#[cfg(test)]` modules within source files
 
-## Infrastructure Setup
-There are multiple infrastructure components required for the application that requires the USER to set up:
-- An S3 bucket for storing encrypted files.
-- AWS credentials for accessing the S3 bucket.
-- VPS server config and CI/CD pipeline for hosting the API server.
-Prompt the USER and explain the procedure just before they are needed for development.
-Remove this section from CLAUDE.md once that is addressed.
