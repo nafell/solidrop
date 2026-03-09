@@ -19,16 +19,15 @@ pub struct CmdContext {
 impl CmdContext {
     pub fn load() -> Result<Self> {
         let config = CliConfig::load().map_err(|e| anyhow::anyhow!("{e}"))?;
+        let master_key = crate::master_key::acquire_master_key(&config.crypto)?;
 
-        let api_key = std::env::var(&config.server.api_key_env).with_context(|| {
-            format!(
-                "API key env var `{}` is not set (configured in [server] api_key_env)",
-                config.server.api_key_env
-            )
-        })?;
+        // Derive the API token from the master key (ADR-003).
+        // The server verifies SHA-256(token); the token itself is never stored server-side.
+        let api_token = solidrop_crypto::key_derivation::derive_api_token(&master_key)
+            .context("failed to derive API token from master key")?;
+        let api_token_hex = hex::encode(api_token);
 
-        let api = SolidropApi::new(config.server.endpoint.clone(), api_key);
-        let master_key = crate::key::load_master_key()?;
+        let api = SolidropApi::new(config.server.endpoint.clone(), api_token_hex);
 
         Ok(Self {
             api,

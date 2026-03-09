@@ -12,7 +12,6 @@ pub struct CliConfig {
 #[derive(Debug, Deserialize)]
 pub struct ServerConfig {
     pub endpoint: String,
-    pub api_key_env: String,
 }
 
 #[derive(Debug, Deserialize)]

@@ -7,14 +7,20 @@ use solidrop_api_server::config::AppConfig;
 use solidrop_api_server::routes::{api_router, auth_middleware, health_router, AppState};
 use solidrop_api_server::s3_client::{create_presigning_s3_client, create_s3_client};
 
-const TEST_API_KEY: &str = "test-secret-key";
+/// Fixed 32-byte test API token (hex-encoded). Never used in production.
+const TEST_API_TOKEN_HEX: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+fn test_api_verifier() -> String {
+    let token_bytes = hex::decode(TEST_API_TOKEN_HEX).unwrap();
+    hex::encode(solidrop_crypto::hash::sha256_raw(&token_bytes))
+}
 
 /// Build a test-ready AppConfig pointing to MinIO.
 fn test_config() -> AppConfig {
     AppConfig {
         port: 3000,
         s3_bucket: std::env::var("S3_BUCKET").unwrap_or_else(|_| "solidrop-dev".into()),
-        api_key: TEST_API_KEY.into(),
+        api_key_verifier: test_api_verifier(),
         aws_region: "us-east-1".into(),
         s3_endpoint_url: Some(
             std::env::var("S3_ENDPOINT_URL").unwrap_or_else(|_| "http://localhost:9000".into()),
@@ -38,8 +44,7 @@ async fn test_app() -> Router {
         config: config.clone(),
     };
 
-    let api =
-        api_router().route_layer(from_fn_with_state(state.clone(), auth_middleware));
+    let api = api_router().route_layer(from_fn_with_state(state.clone(), auth_middleware));
 
     Router::new()
         .merge(health_router())
@@ -50,7 +55,7 @@ async fn test_app() -> Router {
 fn auth_header() -> (HeaderName, HeaderValue) {
     (
         HeaderName::from_static("authorization"),
-        HeaderValue::from_str(&format!("Bearer {TEST_API_KEY}")).unwrap(),
+        HeaderValue::from_str(&format!("Bearer {TEST_API_TOKEN_HEX}")).unwrap(),
     )
 }
 
@@ -519,7 +524,7 @@ async fn test_delete_s3_error_not_masked() {
     let config = AppConfig {
         port: 3000,
         s3_bucket: "solidrop-dev".into(),
-        api_key: TEST_API_KEY.into(),
+        api_key_verifier: test_api_verifier(),
         aws_region: "us-east-1".into(),
         // Point to a non-existent S3 endpoint to trigger connection error
         s3_endpoint_url: Some("http://localhost:1".into()),
@@ -534,8 +539,7 @@ async fn test_delete_s3_error_not_masked() {
         config: config.clone(),
     };
 
-    let api =
-        api_router().route_layer(from_fn_with_state(state.clone(), auth_middleware));
+    let api = api_router().route_layer(from_fn_with_state(state.clone(), auth_middleware));
 
     let app = Router::new()
         .merge(health_router())

@@ -138,7 +138,7 @@ mod tests {
         let config = AppConfig {
             port: 3000,
             s3_bucket: "test-bucket".into(),
-            api_key: "test-key".into(),
+            api_key_verifier: "00".repeat(32),
             aws_region: "us-east-1".into(),
             s3_endpoint_url: None,
             s3_force_path_style: false,

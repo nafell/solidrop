@@ -1,5 +1,12 @@
 use sha2::{Digest, Sha256};
 
+/// Compute raw SHA-256 bytes of the given data (32 bytes).
+pub fn sha256_raw(data: &[u8]) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    hasher.finalize().into()
+}
+
 /// Compute SHA-256 hash of the given data, returned as a hex string prefixed with "sha256:".
 pub fn sha256_hex(data: &[u8]) -> String {
     let mut hasher = Sha256::new();

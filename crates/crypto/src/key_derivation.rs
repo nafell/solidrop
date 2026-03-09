@@ -26,6 +26,19 @@ pub fn derive_file_key(
     Ok(file_key)
 }
 
+/// Derive the API authentication token from the master key using HKDF-SHA256.
+///
+/// Uses info string "solidrop-api-auth" for domain separation from file keys.
+/// The resulting token is sent as `Authorization: Bearer <hex>` by the client.
+/// The server stores only `SHA-256(token)` — see ADR-003.
+pub fn derive_api_token(master_key: &[u8; 32]) -> Result<[u8; 32], CryptoError> {
+    let hkdf = Hkdf::<Sha256>::new(None, master_key);
+    let mut token = [0u8; 32];
+    hkdf.expand(b"solidrop-api-auth", &mut token)
+        .map_err(|e| CryptoError::KeyDerivationFailed(e.to_string()))?;
+    Ok(token)
+}
+
 /// Generate a random 16-byte salt.
 pub fn generate_salt() -> [u8; 16] {
     let mut salt = [0u8; 16];

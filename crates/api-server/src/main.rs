@@ -20,7 +20,7 @@ async fn main() {
         .init();
 
     let config = config::AppConfig::from_env();
-    tracing::debug!(bucket = %config.s3_bucket, has_api_key = !config.api_key.is_empty(), "loaded app config");
+    tracing::debug!(bucket = %config.s3_bucket, has_verifier = !config.api_key_verifier.is_empty(), "loaded app config");
 
     let s3 = s3_client::create_s3_client(&config).await;
     let s3_presign = s3_client::create_presigning_s3_client(&config).await;
