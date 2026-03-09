@@ -58,8 +58,6 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let cli = Cli::parse();
-    let config = config::CliConfig::load()?;
-    let api = api_client::ApiClient::from_config(&config)?;
 
     match cli.command {
         Commands::Upload {
@@ -69,21 +67,13 @@ async fn main() -> anyhow::Result<()> {
             commands::upload::run(&file_path, remote_path.as_deref()).await?;
         }
         Commands::Download { remote_path } => {
-            let key = master_key::acquire_master_key(&config.crypto)?;
-            commands::download::run(&config, &api, &key, &remote_path).await?;
+            commands::download::run(&remote_path).await?;
         }
         Commands::List { prefix } => {
-            commands::list::run(&api, prefix.as_deref()).await?;
+            commands::list::run(prefix.as_deref()).await?;
         }
         Commands::Sync => {
-            let key = master_key::acquire_master_key(&config.crypto)?;
-            commands::sync::run(&config, &api, &key).await?;
-        }
-        Commands::Delete { remote_path } => {
-            commands::delete::run(&api, &remote_path).await?;
-        }
-        Commands::Move { from, to } => {
-            commands::move_cmd::run(&api, &from, &to).await?;
+            commands::sync::run().await?;
         }
         Commands::Delete { remote_path } => {
             commands::delete::run(&remote_path).await?;
