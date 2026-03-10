@@ -51,8 +51,10 @@ enum Commands {
         /// New remote path
         to: String,
     },
-    /// Print the API key verifier for server configuration (reads SOLIDROP_MASTER_KEY)
+    /// Print the API key verifier for server configuration
     PrintVerifier,
+    /// Initialize the master password (run once before first use)
+    Init,
 }
 
 #[tokio::main]
@@ -85,6 +87,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::PrintVerifier => {
             commands::print_verifier::run()?;
+        }
+        Commands::Init => {
+            commands::init::run()?;
         }
     }
 
