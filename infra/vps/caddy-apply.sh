@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Apply Caddyfile snippets to the running Caddy container.
+# Run this on the VPS after adding a new environment.
+#
+# Usage: bash infra/vps/caddy-apply.sh [staging|prod|all]
+#
+# What this does:
+#   1. Locate the Caddyfile that is bind-mounted into the Caddy container
+#   2. Append any missing snippet blocks (idempotent — skips if already present)
+#   3. Reload Caddy in-place (zero-downtime)
+
+set -euo pipefail
+
+REPO_DIR="${REPO_DIR:-/opt/solidrop}"
+CADDY_CONTAINER="${CADDY_CONTAINER:-caddy}"
+TARGET="${1:-all}"
+
+# --------------------------------------------------------------------------- #
+# Helpers                                                                       #
+# --------------------------------------------------------------------------- #
+
+caddy_config_path() {
+  # Resolve the host-side path of the Caddyfile mounted into the container.
+  docker inspect "${CADDY_CONTAINER}" \
+    --format '{{range .Mounts}}{{if eq .Destination "/etc/caddy/Caddyfile"}}{{.Source}}{{end}}{{end}}'
+}
+
+apply_snippet() {
+  local snippet_file="$1"
+  local marker="$2"   # unique string that must appear in the Caddyfile if already applied
+  local host_caddyfile="$3"
+
+  if grep -qF "${marker}" "${host_caddyfile}"; then
+    echo "  [skip] '${marker}' already present in Caddyfile"
+  else
+    echo "  [add]  Appending ${snippet_file}"
+    echo "" >> "${host_caddyfile}"
+    cat "${snippet_file}" >> "${host_caddyfile}"
+  fi
+}
+
+# --------------------------------------------------------------------------- #
+# Main                                                                          #
+# --------------------------------------------------------------------------- #
+
+HOST_CADDYFILE="$(caddy_config_path)"
+if [[ -z "${HOST_CADDYFILE}" ]]; then
+  echo "ERROR: Could not find Caddyfile mount path in container '${CADDY_CONTAINER}'." >&2
+  echo "       Check that the container is running and has /etc/caddy/Caddyfile mounted." >&2
+  exit 1
+fi
+echo "==> Caddyfile path: ${HOST_CADDYFILE}"
+
+case "${TARGET}" in
+  staging|all)
+    echo "==> Applying staging snippet..."
+    apply_snippet \
+      "${REPO_DIR}/infra/vps/Caddyfile.staging.snippet" \
+      "staging.api.solidrop.nafell.dev" \
+      "${HOST_CADDYFILE}"
+    ;;& # fall-through only if all
+  prod|all)
+    if [[ "${TARGET}" == "prod" || "${TARGET}" == "all" ]]; then
+      PROD_SNIPPET="${REPO_DIR}/infra/vps/Caddyfile.prod.snippet"
+      if [[ -f "${PROD_SNIPPET}" ]]; then
+        echo "==> Applying prod snippet..."
+        apply_snippet \
+          "${PROD_SNIPPET}" \
+          "api.solidrop.nafell.dev" \
+          "${HOST_CADDYFILE}"
+      else
+        echo "  [skip] ${PROD_SNIPPET} not found — skipping prod"
+      fi
+    fi
+    ;;
+  *)
+    echo "Usage: $0 [staging|prod|all]" >&2
+    exit 1
+    ;;
+esac
+
+echo "==> Reloading Caddy..."
+docker exec "${CADDY_CONTAINER}" caddy reload --config /etc/caddy/Caddyfile
+echo "==> Done. Test with: curl https://staging.api.solidrop.nafell.dev/health"
