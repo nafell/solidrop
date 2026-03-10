@@ -111,6 +111,66 @@ dist/assets/index-*.js          345.64 kB │ gzip: 109.85 kB
 
 ---
 
+## 初回動作確認で発見・修正したバグ (2026-03-11)
+
+### BUG-1: `VITE_MASTER_SALT_HEX` 未設定
+
+**症状:** ログイン画面で「VITE_MASTER_SALT_HEX is not configured or invalid」エラー。
+**原因:** `web/.env.local` が存在せず、ビルド時環境変数が未注入だった。
+**修正:** `~/.config/solidrop/master.salt` の hex 値を `web/.env.local` に記載。
+
+```
+VITE_MASTER_SALT_HEX=<master.saltの16進数>
+```
+
+### BUG-2: Vite dev server プロキシのポート番号ずれ
+
+**症状:** `GET /api/v1/files?limit=1` が 404 (ログイン失敗)。
+**原因:** `vite.config.ts` のプロキシが `localhost:3000` を向いていたが、ローカルの API staging コンテナは `localhost:3001` で動作していた。
+**修正:** `vite.config.ts` のプロキシを `localhost:3001` に変更。
+
+### BUG-3: `FileEntry.key` → `path` フィールド名の不一致
+
+**症状:** ファイル一覧表示後に「TypeError: can't access property 'split', file.key is undefined」。
+**原因:** `src/api/types.ts` の `FileEntry` に `key: string` と定義していたが、API サーバー (`crates/api-server/src/routes/files.rs`) の実際のレスポンスフィールド名は `path`。
+**修正:** `types.ts` の `FileEntry.key` → `path` に変更。`FileList.tsx` の参照箇所も同様に変更。
+
+### BUG-4: `PresignUploadResponse.upload_url` / `PresignDownloadResponse.download_url` の不一致
+
+**症状:** アップロード時に `/undefined` へ PUT が発生（404）。
+**原因:** `types.ts` のレスポンス型を `upload_url`・`download_url` と定義していたが、API の実際のフィールド名は `url`（アップロード・ダウンロード共通）。
+**修正:**
+- `types.ts`: `PresignUploadResponse.upload_url` → `url`、`PresignDownloadResponse.download_url` → `url`
+- `useUpload.ts`: `{ upload_url }` → `{ url }`
+- `useDownload.ts`: `{ download_url }` → `{ url: downloadUrl }`
+
+### BUG-5: S3 CORS 設定の欠如
+
+**症状:** ブラウザから S3 へのアップロード時に「CORS header 'Access-Control-Allow-Origin' missing」。
+**原因:** `infra/terraform/s3.tf` に CORS 設定が存在しなかった。プレサインド PUT は `x-amz-meta-content-hash` カスタムヘッダーを含むため、ブラウザが CORS プリフライトを送信するが S3 が拒否した。
+**修正:** `s3.tf` に `aws_s3_bucket_cors_configuration` リソースを追加し `terraform apply` で適用。
+
+```hcl
+cors_rule {
+  allowed_headers = ["*"]
+  allowed_methods = ["GET", "PUT", "HEAD"]
+  allowed_origins = ["http://localhost:5173", "http://127.0.0.1:5173",
+                     "https://staging.web.solidrop.nafell.dev", "https://web.solidrop.nafell.dev"]
+  expose_headers  = ["ETag"]
+  max_age_seconds = 3600
+}
+```
+
+あわせて `variables.tf` の `bucket_name` デフォルト値が `nafell-solidrop-storage` と誤っていた（実際は `nafell-solidrop-staging`）ため修正。
+
+### BUG-6: S3 PUT 時に `x-amz-meta-content-hash` ヘッダーが欠落
+
+**症状:** CORS 解消後も S3 PUT が 403 Forbidden。
+**原因:** プレサインド URL の `X-Amz-SignedHeaders` に `x-amz-meta-content-hash` が含まれており、実際の PUT リクエストにもこのヘッダーが必須だった。`putToS3` がカスタムヘッダーを送っていなかった。
+**修正:** `presign.ts` の `putToS3` に `contentHash` 引数を追加し、`xhr.setRequestHeader('x-amz-meta-content-hash', contentHash)` を設定。`useUpload.ts` から `contentHash` を渡すよう変更。
+
+---
+
 ## 残課題・Phase 2 スコープ
 
 | 機能 | 備考 |
