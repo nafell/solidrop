@@ -21,8 +21,21 @@ TARGET="${1:-all}"
 
 caddy_config_path() {
   # Resolve the host-side path of the Caddyfile mounted into the container.
-  docker inspect "${CADDY_CONTAINER}" \
-    --format '{{range .Mounts}}{{if eq .Destination "/etc/caddy/Caddyfile"}}{{.Source}}{{end}}{{end}}'
+  # Supports both file-level mount (/etc/caddy/Caddyfile) and
+  # directory-level mount (/etc/caddy → host_dir, file is host_dir/Caddyfile).
+  local file_mount dir_mount
+  file_mount="$(docker inspect "${CADDY_CONTAINER}" \
+    --format '{{range .Mounts}}{{if eq .Destination "/etc/caddy/Caddyfile"}}{{.Source}}{{end}}{{end}}')"
+  if [[ -n "${file_mount}" ]]; then
+    echo "${file_mount}"
+    return
+  fi
+  dir_mount="$(docker inspect "${CADDY_CONTAINER}" \
+    --format '{{range .Mounts}}{{if eq .Destination "/etc/caddy"}}{{.Source}}{{end}}{{end}}')"
+  if [[ -n "${dir_mount}" ]]; then
+    echo "${dir_mount}/Caddyfile"
+    return
+  fi
 }
 
 apply_snippet() {

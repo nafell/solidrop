@@ -29,6 +29,23 @@ resource "aws_s3_bucket_public_access_block" "art_storage" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_cors_configuration" "art_storage" {
+  bucket = aws_s3_bucket.art_storage.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "HEAD"]
+    allowed_origins = [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "https://staging.web.solidrop.nafell.dev",
+      "https://web.solidrop.nafell.dev",
+    ]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3600
+  }
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "art_storage" {
   bucket = aws_s3_bucket.art_storage.id
 
