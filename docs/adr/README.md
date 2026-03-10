@@ -30,3 +30,7 @@
 | [ADR-004](004-s3-as-source-of-truth.md) | サーバーサイドDB不使用・S3をシングルソースオブトゥルースとする | Superseded (by ADR-006) | 2026-02 |
 | [ADR-006](006-valkey-metadata-index.md) | API層にValkey永続インデックスを導入し、S3メタデータ参照を最適化する | Accepted | 2026-03 |
 | [ADR-005](005-lru-cache-approval-eviction.md) | iPadローカルストレージをLRUキャッシュとして扱い、承認制で退避する | Accepted | 2026-02 |
+| [ADR-007](007-web-crypto-noble-hashes-hybrid.md) | ブラウザ暗号化実装に Web Crypto API と @noble/hashes のハイブリッドを採用 | Accepted | 2026-03 |
+| [ADR-008](008-vite-master-salt-env.md) | Argon2id マスター鍵導出ソルトをビルド時環境変数で注入する | Accepted | 2026-03 |
+| [ADR-009](009-caddy-same-origin-proxy.md) | Caddy 同一オリジンプロキシによる CORS 不要設計 | Accepted | 2026-03 |
+| [ADR-010](010-session-storage-master-key.md) | masterKey の sessionStorage 保持とページリロード対応 | Accepted | 2026-03 |
