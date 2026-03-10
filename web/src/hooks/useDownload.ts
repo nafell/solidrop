@@ -19,10 +19,10 @@ export function useDownload() {
       setState({ downloading: true, error: null })
       try {
         // 1. Get presigned download URL
-        const { download_url } = await getDownloadUrl(apiToken, path)
+        const { url: downloadUrl } = await getDownloadUrl(apiToken, path)
 
         // 2. Fetch encrypted bytes from S3
-        const res = await fetch(download_url)
+        const res = await fetch(downloadUrl)
         if (!res.ok) throw new Error(`S3 GET failed: ${res.status}`)
         const encrypted = new Uint8Array(await res.arrayBuffer())
 

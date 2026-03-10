@@ -16,13 +16,13 @@ function formatDate(iso: string): string {
 }
 
 function FileRow({ file }: { file: FileEntry }) {
-  const name = file.key.split('/').pop() ?? file.key
+  const name = file.path.split('/').pop() ?? file.path
   return (
     <tr>
-      <td className="file-name" title={file.key}>{name}</td>
+      <td className="file-name" title={file.path}>{name}</td>
       <td className="file-size">{formatBytes(file.size)}</td>
       <td className="file-date">{formatDate(file.last_modified)}</td>
-      <td><DownloadButton path={file.key} /></td>
+      <td><DownloadButton path={file.path} /></td>
     </tr>
   )
 }
@@ -61,7 +61,7 @@ export default function FileList() {
       </thead>
       <tbody>
         {files.map(file => (
-          <FileRow key={file.key} file={file} />
+          <FileRow key={file.path} file={file} />
         ))}
       </tbody>
     </table>

@@ -1,7 +1,7 @@
 // API response types — must match crates/api-server/SPEC.md
 
 export interface FileEntry {
-  key: string
+  path: string
   size: number
   last_modified: string
   content_hash: string
@@ -19,7 +19,7 @@ export interface PresignUploadRequest {
 }
 
 export interface PresignUploadResponse {
-  upload_url: string
+  url: string
 }
 
 export interface PresignDownloadRequest {
@@ -27,7 +27,8 @@ export interface PresignDownloadRequest {
 }
 
 export interface PresignDownloadResponse {
-  download_url: string
+  url: string
+  content_hash: string | null
 }
 
 export interface DeleteResponse {

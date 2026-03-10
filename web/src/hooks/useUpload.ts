@@ -35,14 +35,14 @@ export function useUpload() {
         const encrypted = await encryptFile(masterKey, plaintext)
 
         // 4. Get presigned upload URL
-        const { upload_url } = await getUploadUrl(apiToken, {
+        const { url } = await getUploadUrl(apiToken, {
           path: file.name,
           content_hash: contentHash,
           size_bytes: encrypted.byteLength,
         })
 
         // 5. PUT to S3 with progress
-        await putToS3(upload_url, encrypted, (pct) => {
+        await putToS3(url, encrypted, contentHash, (pct) => {
           setState(s => ({ ...s, progress: pct }))
         })
 

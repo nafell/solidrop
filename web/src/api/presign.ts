@@ -33,13 +33,15 @@ export async function getDownloadUrl(
 export function putToS3(
   url: string,
   data: Uint8Array,
+  contentHash: string,
   onProgress?: (percent: number) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', url)
-    // S3 presigned PUT does not accept Content-Type in the signed headers
-    // unless it was specified at signing time; omit to avoid SignatureDoesNotMatch
+    // Required: presigned URL was signed with x-amz-meta-content-hash as a
+    // signed header constraint; S3 rejects PUTs that omit this header.
+    xhr.setRequestHeader('x-amz-meta-content-hash', contentHash)
     if (onProgress) {
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) onProgress((e.loaded / e.total) * 100)
