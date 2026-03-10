@@ -6,24 +6,16 @@ use std::path::PathBuf;
 pub struct CliConfig {
     pub server: ServerConfig,
     pub storage: StorageConfig,
-    pub crypto: CryptoConfig,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ServerConfig {
     pub endpoint: String,
-    pub api_key_env: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct StorageConfig {
     pub download_dir: PathBuf,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CryptoConfig {
-    pub keychain_service: String,
-    pub keychain_account: String,
 }
 
 impl CliConfig {

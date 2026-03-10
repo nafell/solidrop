@@ -4,7 +4,9 @@ use std::env;
 pub struct AppConfig {
     pub port: u16,
     pub s3_bucket: String,
-    pub api_key: String,
+    /// SHA-256 hex digest of the HKDF-derived API token (see ADR-003).
+    /// Set this to `hex(SHA-256(HKDF(master_key, info="solidrop-api-auth")))`.
+    pub api_key_verifier: String,
     pub aws_region: String,
     /// Custom S3 endpoint URL for MinIO/LocalStack (e.g. "http://minio:9000")
     pub s3_endpoint_url: Option<String>,
@@ -22,7 +24,8 @@ impl AppConfig {
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3000),
             s3_bucket: env::var("S3_BUCKET").expect("S3_BUCKET must be set"),
-            api_key: env::var("API_KEY").expect("API_KEY must be set"),
+            api_key_verifier: env::var("SOLIDROP_API_KEY_VERIFIER_SHA256")
+                .expect("SOLIDROP_API_KEY_VERIFIER_SHA256 must be set"),
             aws_region: env::var("AWS_REGION").unwrap_or_else(|_| "ap-northeast-1".into()),
             s3_endpoint_url: env::var("S3_ENDPOINT_URL").ok(),
             s3_force_path_style: env::var("S3_FORCE_PATH_STYLE")

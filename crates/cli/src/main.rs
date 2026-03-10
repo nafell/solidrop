@@ -51,6 +51,10 @@ enum Commands {
         /// New remote path
         to: String,
     },
+    /// Print the API key verifier for server configuration
+    PrintVerifier,
+    /// Initialize the master password (run once before first use)
+    Init,
 }
 
 #[tokio::main]
@@ -80,6 +84,12 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Move { from, to } => {
             commands::move_cmd::run(&from, &to).await?;
+        }
+        Commands::PrintVerifier => {
+            commands::print_verifier::run()?;
+        }
+        Commands::Init => {
+            commands::init::run()?;
         }
     }
 

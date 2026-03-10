@@ -36,7 +36,8 @@ pub async fn run(prefix: Option<&str>) -> anyhow::Result<()> {
 
     println!(
         "{:<path_width$}  {:>12}  LAST MODIFIED",
-        "PATH", "SIZE",
+        "PATH",
+        "SIZE",
         path_width = path_width,
     );
     println!("{}", "-".repeat(path_width + 2 + 12 + 2 + 24));
