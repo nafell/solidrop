@@ -17,6 +17,10 @@
 .DS_Store
 Thumbs.db
 
+# Web frontend
+web/node_modules/
+web/dist/
+
 # Flutter (for future use)
 flutter/solidrop/.dart_tool/
 flutter/solidrop/build/
