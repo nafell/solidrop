@@ -1,7 +1,7 @@
+import { Link, useRouter } from '@tanstack/react-router'
 import { useAuthContext } from '../context/AuthContext'
 import FileList from '../components/FileList'
 import UploadButton from '../components/UploadButton'
-import { useRouter } from '@tanstack/react-router'
 
 export default function FilesPage() {
   const { logout } = useAuthContext()
@@ -16,6 +16,10 @@ export default function FilesPage() {
     <>
       <header className="app-header">
         <h1>SoliDrop</h1>
+        <nav className="app-nav">
+          <Link to="/files" activeProps={{ className: 'active' }}>一覧</Link>
+          <Link to="/viewer" activeProps={{ className: 'active' }}>ビューア</Link>
+        </nav>
         <button className="btn-ghost" onClick={handleLogout}>ログアウト</button>
       </header>
       <main className="page">

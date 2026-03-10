@@ -8,6 +8,7 @@ import {
 import type { AuthState } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
 import FilesPage from './pages/FilesPage'
+import ViewerPage from './pages/ViewerPage'
 
 interface RouterContext {
   auth: AuthState
@@ -57,7 +58,16 @@ const filesRoute = createRoute({
   component: FilesPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, filesRoute])
+const viewerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/viewer',
+  beforeLoad: ({ context }) => {
+    if (!context.auth.isAuthenticated) throw redirect({ to: '/login' })
+  },
+  component: ViewerPage,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, filesRoute, viewerRoute])
 
 export const router = createRouter({
   routeTree,
