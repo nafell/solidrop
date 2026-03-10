@@ -1,0 +1,19 @@
+[Unit]
+Description=Solidrop Web Frontend (staging)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Restart=always
+RestartSec=5s
+ExecStartPre=-/usr/bin/docker stop solidrop-web-staging
+ExecStartPre=-/usr/bin/docker rm solidrop-web-staging
+ExecStart=/usr/bin/docker run \
+    --name solidrop-web-staging \
+    --rm \
+    -p 127.0.0.1:3011:80 \
+    solidrop-web:staging
+ExecStop=/usr/bin/docker stop solidrop-web-staging
+
+[Install]
+WantedBy=multi-user.target

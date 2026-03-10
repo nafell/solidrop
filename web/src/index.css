@@ -1,0 +1,274 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --border: #2d3142;
+  --text: #e2e8f0;
+  --text-muted: #718096;
+  --accent: #6c8ebf;
+  --accent-hover: #8aabd4;
+  --danger: #e53e3e;
+  --success: #38a169;
+  --radius: 6px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  border: none;
+  border-radius: var(--radius);
+  padding: 6px 14px;
+  background: var(--accent);
+  color: #fff;
+  transition: background 0.15s;
+}
+button:hover:not(:disabled) { background: var(--accent-hover); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+input[type="password"],
+input[type="text"] {
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 8px 12px;
+  width: 100%;
+  outline: none;
+}
+input:focus { border-color: var(--accent); }
+
+a { color: var(--accent); text-decoration: none; }
+
+/* Layout */
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* Login */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px;
+  width: 360px;
+}
+.login-card h1 {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  text-align: center;
+}
+.form-group {
+  margin-bottom: 16px;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.btn-primary {
+  width: 100%;
+  padding: 10px;
+  font-size: 15px;
+  margin-top: 8px;
+}
+.error-msg {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 32px;
+}
+.app-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* File list toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.toolbar h2 {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Table */
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.file-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.file-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.file-table tr:last-child td { border-bottom: none; }
+.file-table tr:hover td { background: rgba(255,255,255,0.02); }
+.file-name { font-family: monospace; font-size: 13px; }
+.file-size { color: var(--text-muted); white-space: nowrap; }
+.file-date { color: var(--text-muted); white-space: nowrap; font-size: 12px; }
+
+/* Progress bar */
+.progress-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.1s;
+}
+
+/* Status / empty */
+.status-row {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-muted);
+}
+
+/* Nav */
+.app-nav { display: flex; gap: 16px; align-items: center; }
+.app-nav a { color: var(--text-muted); text-decoration: none; font-size: 14px; }
+.app-nav a.active { color: var(--text); font-weight: 500; }
+.app-nav a:hover { color: var(--text); }
+
+/* Thumbnail grid */
+.thumbnail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.thumbnail-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  aspect-ratio: 1;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumbnail-card img { width: 100%; height: 100%; object-fit: cover; }
+.thumbnail-card:hover { border-color: var(--accent); }
+.thumbnail-spinner {
+  display: inline-block;
+  width: 24px; height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.thumbnail-error { color: var(--danger); font-size: 18px; font-weight: bold; }
+
+/* Lightbox */
+.lightbox-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.lightbox-content {
+  position: relative;
+  display: flex; flex-direction: column;
+  max-width: 90vw; max-height: 90vh;
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.lightbox-img {
+  display: block;
+  max-width: 90vw; max-height: 80vh;
+  object-fit: contain;
+}
+.lightbox-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.lightbox-filename { font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lightbox-close {
+  position: absolute; top: 8px; right: 8px;
+  z-index: 1; padding: 4px 10px; font-size: 16px;
+}
+.lightbox-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-size: 28px; padding: 4px 12px; line-height: 1;
+}
+.lightbox-prev { left: 8px; }
+.lightbox-next { right: 8px; }
+.lightbox-spinner { width: 36px; height: 36px; margin: 48px; }

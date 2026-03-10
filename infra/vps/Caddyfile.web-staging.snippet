@@ -1,0 +1,24 @@
+# solidrop Web フロントエンド (staging)
+# staging.web.solidrop.nafell.dev から静的配信 + API リバースプロキシ
+#
+# 配置:
+#   Web  (nginx): 127.0.0.1:3011
+#   API  (axum) : 127.0.0.1:3001  ← /api/* と /health を透過
+#
+# ブラウザから見ると同一オリジンになるため CORS 設定不要
+
+staging.web.solidrop.nafell.dev {
+    # API エンドポイントを API コンテナに透過
+    handle /api/* {
+        reverse_proxy http://localhost:3001
+    }
+
+    handle /health {
+        reverse_proxy http://localhost:3001
+    }
+
+    # それ以外 (SPA) は nginx コンテナへ
+    handle {
+        reverse_proxy http://localhost:3011
+    }
+}
