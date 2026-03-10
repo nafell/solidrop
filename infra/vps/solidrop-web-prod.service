@@ -1,0 +1,19 @@
+[Unit]
+Description=Solidrop Web Frontend (prod)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Restart=always
+RestartSec=5s
+ExecStartPre=-/usr/bin/docker stop solidrop-web-prod
+ExecStartPre=-/usr/bin/docker rm solidrop-web-prod
+ExecStart=/usr/bin/docker run \
+    --name solidrop-web-prod \
+    --rm \
+    -p 127.0.0.1:3012:80 \
+    solidrop-web:prod
+ExecStop=/usr/bin/docker stop solidrop-web-prod
+
+[Install]
+WantedBy=multi-user.target

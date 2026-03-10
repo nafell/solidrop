@@ -53,23 +53,37 @@ echo "==> Caddyfile path: ${HOST_CADDYFILE}"
 
 case "${TARGET}" in
   staging|all)
-    echo "==> Applying staging snippet..."
+    echo "==> Applying staging snippets..."
     apply_snippet \
       "${REPO_DIR}/infra/vps/Caddyfile.staging.snippet" \
       "staging.api.solidrop.nafell.dev" \
+      "${HOST_CADDYFILE}"
+    apply_snippet \
+      "${REPO_DIR}/infra/vps/Caddyfile.web-staging.snippet" \
+      "staging.web.solidrop.nafell.dev" \
       "${HOST_CADDYFILE}"
     ;;& # fall-through only if all
   prod|all)
     if [[ "${TARGET}" == "prod" || "${TARGET}" == "all" ]]; then
       PROD_SNIPPET="${REPO_DIR}/infra/vps/Caddyfile.prod.snippet"
       if [[ -f "${PROD_SNIPPET}" ]]; then
-        echo "==> Applying prod snippet..."
+        echo "==> Applying prod API snippet..."
         apply_snippet \
           "${PROD_SNIPPET}" \
           "api.solidrop.nafell.dev" \
           "${HOST_CADDYFILE}"
       else
-        echo "  [skip] ${PROD_SNIPPET} not found — skipping prod"
+        echo "  [skip] ${PROD_SNIPPET} not found — skipping prod API"
+      fi
+      WEB_PROD_SNIPPET="${REPO_DIR}/infra/vps/Caddyfile.web-prod.snippet"
+      if [[ -f "${WEB_PROD_SNIPPET}" ]]; then
+        echo "==> Applying prod web snippet..."
+        apply_snippet \
+          "${WEB_PROD_SNIPPET}" \
+          "web.solidrop.nafell.dev" \
+          "${HOST_CADDYFILE}"
+      else
+        echo "  [skip] ${WEB_PROD_SNIPPET} not found — skipping prod web"
       fi
     fi
     ;;
@@ -81,4 +95,6 @@ esac
 
 echo "==> Reloading Caddy..."
 docker exec "${CADDY_CONTAINER}" caddy reload --config /etc/caddy/Caddyfile
-echo "==> Done. Test with: curl https://staging.api.solidrop.nafell.dev/health"
+echo "==> Done."
+echo "    API  staging: curl https://staging.api.solidrop.nafell.dev/health"
+echo "    Web  staging: curl https://staging.web.solidrop.nafell.dev/"
