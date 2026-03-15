@@ -110,6 +110,9 @@ a { color: var(--accent); text-decoration: none; }
 
 /* Header */
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -272,3 +275,27 @@ a { color: var(--accent); text-decoration: none; }
 .lightbox-prev { left: 8px; }
 .lightbox-next { right: 8px; }
 .lightbox-spinner { width: 36px; height: 36px; margin: 48px; }
+
+/* Debug panel */
+.debug-panel {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  z-index: 300;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.debug-panel h2 { font-size: 14px; margin-bottom: 0; }
+.debug-section { margin-bottom: 16px; }
+.debug-section h3 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+.debug-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.debug-table th { color: var(--text-muted); text-align: right; padding: 2px 6px; }
+.debug-table td { text-align: right; padding: 2px 6px; font-family: monospace; }
+.debug-table td:first-child { text-align: left; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.debug-cache-stats { font-size: 13px; font-family: monospace; }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { decryptFile } from '../crypto/aes'
 import { getDownloadUrl } from '../api/presign'
 import { useAuthContext } from '../context/AuthContext'
+import { useDebugContext } from '../context/DebugContext'
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif'])
 
@@ -24,6 +25,13 @@ function mimeTypeFromPath(path: string): string {
 
 // Module-level cache: survives re-mounts, lives for the tab session
 const blobUrlCache = new Map<string, string>()
+const blobSizeCache = new Map<string, number>()
+
+export function getBlobCacheStats(): { count: number; totalBytes: number } {
+  let total = 0
+  for (const size of blobSizeCache.values()) total += size
+  return { count: blobUrlCache.size, totalBytes: total }
+}
 
 export type ThumbnailStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -35,6 +43,7 @@ export interface ThumbnailState {
 
 export function useThumbnail(path: string, enabled: boolean): ThumbnailState {
   const { masterKey, apiToken } = useAuthContext()
+  const { recordThumbnail, updateCacheStats } = useDebugContext()
   const [state, setState] = useState<ThumbnailState>(() => {
     if (blobUrlCache.has(path)) {
       return { status: 'ready', blobUrl: blobUrlCache.get(path)!, error: null }
@@ -49,6 +58,16 @@ export function useThumbnail(path: string, enabled: boolean): ThumbnailState {
     // Cache hit
     if (blobUrlCache.has(path)) {
       setState({ status: 'ready', blobUrl: blobUrlCache.get(path)!, error: null })
+      recordThumbnail({
+        filename: path,
+        encryptedBytes: 0,
+        presignMs: 0,
+        networkMs: 0,
+        decryptMs: 0,
+        totalMs: 0,
+        cacheHit: true,
+        timestamp: Date.now(),
+      })
       return
     }
 
@@ -56,15 +75,38 @@ export function useThumbnail(path: string, enabled: boolean): ThumbnailState {
 
     setState({ status: 'loading', blobUrl: null, error: null })
     ;(async () => {
+      const t0 = performance.now()
       try {
         const { url: downloadUrl } = await getDownloadUrl(apiToken, path)
+        const t1 = performance.now()
+
         const res = await fetch(downloadUrl)
         if (!res.ok) throw new Error(`S3 GET failed: ${res.status}`)
         const encrypted = new Uint8Array(await res.arrayBuffer())
+        const t2 = performance.now()
+
         const plaintext = await decryptFile(masterKey, encrypted)
+        const t3 = performance.now()
+
         const blob = new Blob([plaintext as unknown as BlobPart], { type: mimeTypeFromPath(path) })
         const blobUrl = URL.createObjectURL(blob)
+        blobSizeCache.set(path, blob.size)
         blobUrlCache.set(path, blobUrl)
+
+        const stats = getBlobCacheStats()
+        updateCacheStats(stats.count, stats.totalBytes)
+
+        recordThumbnail({
+          filename: path,
+          encryptedBytes: encrypted.byteLength,
+          presignMs: t1 - t0,
+          networkMs: t2 - t1,
+          decryptMs: t3 - t2,
+          totalMs: t3 - t0,
+          cacheHit: false,
+          timestamp: Date.now(),
+        })
+
         if (!cancelled) {
           setState({ status: 'ready', blobUrl, error: null })
         }
@@ -76,7 +118,7 @@ export function useThumbnail(path: string, enabled: boolean): ThumbnailState {
     })()
 
     return () => { cancelled = true }
-  }, [path, enabled, masterKey, apiToken])
+  }, [path, enabled, masterKey, apiToken, recordThumbnail, updateCacheStats])
 
   return state
 }

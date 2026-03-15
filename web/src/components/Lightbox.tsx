@@ -43,7 +43,7 @@ export default function Lightbox({ files, index, onClose, onPrev, onNext }: Prop
         <LightboxImage file={file} />
         <div className="lightbox-footer">
           <span className="lightbox-filename">{name}</span>
-          <span className="lightbox-size">{formatBytes(file.size)}</span>
+          <span className="lightbox-size">{formatBytes(file.size_bytes)}</span>
         </div>
         {files.length > 1 && (
           <>

@@ -2,7 +2,7 @@
 
 export interface FileEntry {
   path: string
-  size: number
+  size_bytes: number
   last_modified: string
   content_hash: string
 }

@@ -8,7 +8,7 @@ function FileRow({ file }: { file: FileEntry }) {
   return (
     <tr>
       <td className="file-name" title={file.path}>{name}</td>
-      <td className="file-size">{formatBytes(file.size)}</td>
+      <td className="file-size">{formatBytes(file.size_bytes)}</td>
       <td className="file-date">{formatDate(file.last_modified)}</td>
       <td><DownloadButton path={file.path} /></td>
     </tr>
